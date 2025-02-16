@@ -13,5 +13,5 @@
    token_save.py : 토크나이저를 파일로 저장
 
 ## 지원 함수 ( CPP )
- - token_test : 텍스트로 토큰 IDS와 토크나이징된 분리된 문자열을 가져오는 예제 함수.
- - weights_test : IDS로 가중치를 차원 개수만큼 가져오는 예제함수.
+ - test_token.cpp : 텍스트로 토큰 IDS와 토크나이징된 분리된 문자열을 가져오는 예제 소스
+ - test_weights : IDS로 가중치를 차원 개수만큼 가져오는 예제소스
