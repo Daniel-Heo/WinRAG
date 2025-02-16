@@ -9,6 +9,7 @@
  - Tokenizer 파일로 토크나이저 JSON 파일 생성
 
    embedding_save.py : 가중치를 파일로 저장
+   
    token_save.py : 토크나이저를 파일로 저장
 
 ## 지원 함수
