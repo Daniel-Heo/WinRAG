@@ -76,7 +76,7 @@ std::vector<std::string> tokenize(const std::string& text, const std::unordered_
 
             std::cout << "start pos: " << position << "\n";
 
-            // 🔍 긴 문자열부터 오른쪽에서 줄여가며 탐색
+            // 긴 문자열부터 오른쪽에서 줄여가며 탐색
             for (size_t end = input.size(); end > position; --end) {
                 std::string substring = input.substr(position, end - position);
 
