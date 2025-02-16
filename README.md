@@ -6,7 +6,7 @@
 
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
- - Tokenizer 파일로 토크나이저 JSON 파일 생성
+ - Tokenizer 파일로 토크나이저 JSON 파일 생성 : mapping.json
 
    weights_save.py : 가중치를 파일로 저장
    
