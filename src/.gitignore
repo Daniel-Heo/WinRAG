@@ -15,6 +15,7 @@ bld/
 [Ll]og/
 [Ll]ogs/
 [Rr]eal[Tt]rans/
+[Ww]inRAG/
 
 # Visual Studio MFC 프로젝트 파일
 *.aps
@@ -76,3 +77,5 @@ libvc/
 # 특정 파일 제외
 resource.resorg
 resource_backup.h
+*.vcxproj
+*.filters

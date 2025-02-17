@@ -1,7 +1,8 @@
 import json
 from transformers import AutoTokenizer
 
-MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
+#MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B"
+MODEL_NAME = "skt/kogpt2-base-v2"
 
 def save_mapping_json(vocab, filename="mapping.json"):
     """모든 토큰과 해당 ID를 JSON 파일로 저장 (\r, \n, \t 제거)"""
