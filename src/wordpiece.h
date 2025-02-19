@@ -21,5 +21,5 @@ struct Token {
     int id;         // Á¤¼ö
 };
 
-void loadTokenizer(const string& filename);
+void loadTokenizer(const std::string& filename);
 std::vector<Token> tokenize(const std::string& text);

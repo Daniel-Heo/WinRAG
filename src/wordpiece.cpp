@@ -47,7 +47,7 @@ static MemoryPool* nodePool = nullptr;
 static TrieNode* root = nullptr;
 
 // Tokenizer.json 로드 (메모리 풀을 동적으로 설정)
-void loadTokenizer(const string& filename) {
+void loadTokenizer(const std::string& filename) {
     ifstream file(filename);
     if (!file.is_open()) {
         cerr << "Error: tokenizer.json 파일을 열 수 없습니다." << endl;
