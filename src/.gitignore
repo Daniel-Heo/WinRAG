@@ -16,6 +16,7 @@ bld/
 [Ll]ogs/
 [Rr]eal[Tt]rans/
 [Ww]inRAG/
+[Tt]oilet/
 
 # Visual Studio MFC 프로젝트 파일
 *.aps
