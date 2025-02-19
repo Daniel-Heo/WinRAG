@@ -12,6 +12,7 @@
 
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
+   
    weights_save.py : 가중치를 파일로 저장
 
 ## 지원 함수 ( CPP )
