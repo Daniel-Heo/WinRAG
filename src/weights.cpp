@@ -71,7 +71,7 @@ WeightLoader::WeightLoader(const std::string& filename) {
         throw std::runtime_error("배열 크기(`shape`) 파싱 실패.");
     }
 
-    std::cout << "배열 크기: " << rows << " x " << cols << std::endl;
+    //std::cout << "배열 크기: " << rows << " x " << cols << std::endl;
 
     // 6. float16 데이터 즉시 float32로 변환하며 읽기
     size_t total_elements = rows * cols;
