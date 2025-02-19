@@ -12,12 +12,16 @@
 
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
+ - 토크나이저 파일 저장 : tokenizer.json
    
-   weights_save.py : 가중치를 파일로 저장
+   save_weights.py : 가중치를 파일로 저장
+
+   save_tokenizer.py : 토크나이저 파일 저장
 
 ## 지원 함수 ( CPP )
  - test_token.cpp : 텍스트로 토큰 IDS와 토크나이징된 분리된 문자열을 가져오는 예제 소스
  - test_weights.cpp : IDS로 가중치를 차원 개수만큼 가져오는 예제소스
+ - test_main.cpp : 공통으로 테스트 진행중
 
 ## TODO List
  - Faiss 적용 : https://github.com/facebookresearch/faiss
