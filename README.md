@@ -19,6 +19,6 @@
  - test_token.cpp : 텍스트로 토큰 IDS와 토크나이징된 분리된 문자열을 가져오는 예제 소스
  - test_weights.cpp : IDS로 가중치를 차원 개수만큼 가져오는 예제소스
 
-## TODO
+## TODO List
  - Faiss 적용 : https://github.com/facebookresearch/faiss
  - 평가 라이브러리 적용
