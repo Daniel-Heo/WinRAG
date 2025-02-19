@@ -4,13 +4,15 @@
 - Tokenizer : 문장 입력시 IDS 리턴
 - Embedding Weights : IDS에 해당하는 가중치 결과들을 리턴.
 
+## Tokenizer
+ - Wordpiece tokenizer만 지원
+ - 적용 알고리즘 : Trie, 메모리풀
+ - 성능 : intel i5-12600K 10만건 처리시간("딮러닝은 AI 모델을 개선합니다.") -> 5초정도
+ - UTF8 지원
+
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
- - Tokenizer 파일로 토크나이저 JSON 파일 생성 : mapping.json
-
    weights_save.py : 가중치를 파일로 저장
-   
-   token_save.py : 토크나이저를 파일로 저장
 
 ## 지원 함수 ( CPP )
  - test_token.cpp : 텍스트로 토큰 IDS와 토크나이징된 분리된 문자열을 가져오는 예제 소스
