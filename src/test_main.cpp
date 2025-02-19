@@ -2,34 +2,6 @@
 #include "weights.h"
 #include "math.h"
 
-int test_wordpiece() {
-    // tokenizer 파일 로드
-    loadTokenizer("tokenizer.json");
-
-    // 테스트할 문장 입력
-   // std::string text = "Deep learning improves AI models";
-	std::string text = "딮러닝은 AI 모델을 개선합니다.";
-    std::vector<Token> tokens;
-
-    // 문장 토큰화
-    clock_t start, end;
-    start = clock();
-	for (int i = 0; i < 100000; i++)
-        tokens = tokenize(text);
-	end = clock();
-	printf("실행시간: %f\n", (double)(end - start) / CLOCKS_PER_SEC);
-
-    // 결과 출력
-    std::cout << "Tokenized Result:" << std::endl;
-	for (const auto& token : tokens) {
-		std::cout << token.key << ":";
-		std::cout << token.id << " ";
-	}
-    std::cout << std::endl;
-
-    return 0;
-}
-
 int test_mapping() {
     // tokenizer 파일 로드
     loadTokenizer("tokenizer.json");
@@ -51,9 +23,9 @@ int test_mapping() {
 int main() {
     //SetConsoleOutputCP(CP_UTF8);
 	//test_wordpiece(); // 1.45초 // 0.033
-	//test_weights();
+	test_weights();
 	//test_mapping();
-    test_math();
+    //test_math();
     return 0;
 }
 

@@ -1,32 +1,28 @@
 ﻿// weights.cpp
 #include "weights.h"
 
-// float16 -> float32 변환 함수
-float float16_to_float32(uint16_t h) {
-    // IEEE 754 half-precision layout
+// float16 → float32 변환 함수 (private)
+float WeightLoader::float16_to_float32(uint16_t h) {
     uint16_t sign = (h & 0x8000) >> 15;
     uint16_t exponent = (h & 0x7C00) >> 10;
     uint16_t mantissa = h & 0x03FF;
 
     float value;
     if (exponent == 0) {
-        // 서브노멀 (Subnormal)
-        value = std::ldexp(mantissa, -24);
+        value = std::ldexp(mantissa, -24);  // 서브노멀 (Subnormal)
     }
     else if (exponent == 0x1F) {
-        // NaN or Infinity
-        value = mantissa ? NAN : INFINITY;
+        value = mantissa ? NAN : INFINITY;  // NaN 또는 Infinity 처리
     }
     else {
-        // 일반적인 float 값
         value = std::ldexp(mantissa + 1024, exponent - 25);
     }
 
     return sign ? -value : value;
 }
 
-// NumPy .npy 파일 float16 → float32 로드
-std::vector<float> load_npy_float16_to_float32(const std::string& filename, size_t& rows, size_t& cols) {
+// 생성자: 가중치 파일 로드
+WeightLoader::WeightLoader(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
         throw std::runtime_error("파일을 열 수 없습니다: " + filename);
@@ -79,30 +75,72 @@ std::vector<float> load_npy_float16_to_float32(const std::string& filename, size
 
     // 6. float16 데이터 즉시 float32로 변환하며 읽기
     size_t total_elements = rows * cols;
-    std::vector<float> float32_data(total_elements);
+    weights.resize(total_elements);
 
     for (size_t i = 0; i < total_elements; ++i) {
         uint16_t h;
         file.read(reinterpret_cast<char*>(&h), sizeof(uint16_t));
-        float32_data[i] = float16_to_float32(h);
+        weights[i] = float16_to_float32(h);
     }
 
     file.close();
-    return float32_data;
 }
+
+// 특정 위치(row, col)의 가중치 반환
+float WeightLoader::get(int row_idx, int col_idx) const {
+    if (row_idx < 0 || row_idx >= rows || col_idx < 0 || col_idx >= cols) {
+        throw std::out_of_range("잘못된 인덱스입니다.");
+    }
+    return weights[row_idx * cols + col_idx];
+}
+
+std::vector<float> WeightLoader::get(int row_idx) const {
+    if (row_idx < 0 || row_idx >= rows ) {
+        throw std::out_of_range("잘못된 인덱스입니다.");
+    }
+    
+	std::vector<float> result;
+	for (int i = 0; i < cols; i++) {
+		result.push_back(weights[row_idx * cols + i]);
+	}
+	return result;
+}
+
+
+// 행 개수 반환
+int WeightLoader::get_rows() const {
+    return rows;
+}
+
+// 열 개수 반환
+int WeightLoader::get_cols() const {
+    return cols;
+}
+
+// 가중치 데이터 개수 반환
+int WeightLoader::get_size() const {
+	return weights.size();
+}
+
 
 int test_weights() {
     try {
-        size_t rows = WEIGHT_SIZE, cols = DIM_SIZE;
-        static std::vector<float> embeddings = load_npy_float16_to_float32("embedding_weights.npy", rows, cols);
-        // 주소 계산 ( x, y ) = x*cols+y = x*192+y
+        WeightLoader loader("embedding_weights.npy");
 
-        std::cout << "첫 번째 행 일부 출력 (float16 값): ";
-        for (size_t i = 0; i < 10; ++i) {
-            std::cout << embeddings[i] << " ";
+        std::cout << "총 행 개수: " << loader.get_rows() << std::endl;
+        std::cout << "총 열 개수: " << loader.get_cols() << std::endl;
+        std::cout << "총 가중치 개수: " << loader.get_size() << std::endl;
+
+        // 특정 가중치 값 가져오기
+        int row = 0, col = 2;
+        float weight = loader.get(row, col);
+        std::cout << "Weight[" << row << "][" << col << "]: " << weight << std::endl;
+		std::vector<float> row_weights = loader.get(row);
+		std::cout << "Weight Data[";
+        for (const auto& w : row_weights) {
+            std::cout << w << " ";
         }
-        std::cout << "\n총 로드된 데이터 수: " << embeddings.size() << std::endl;
-
+		std::cout << "]" << std::endl;
     }
     catch (const std::exception& e) {
         std::cerr << "오류 발생: " << e.what() << std::endl;

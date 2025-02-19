@@ -21,5 +21,10 @@ struct Token {
     int id;         // 정수
 };
 
+// 토크나이저 파일 로드
 void loadTokenizer(const std::string& filename);
+// 텍스트를 입력받아 토큰화된 결과를 반환
 std::vector<Token> tokenize(const std::string& text);
+
+// 테스트 함수
+int test_wordpiece();
