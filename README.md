@@ -7,7 +7,7 @@
 ## Tokenizer
  - Wordpiece tokenizer만 지원
  - 적용 알고리즘 : Trie, 메모리풀
- - 성능 : intel i5-12600K 10만건 처리시간("딮러닝은 AI 모델을 개선합니다.") -> 5초정도
+ - 검색 성능 : intel i5-12600K 10만건 처리시간("딮러닝은 AI 모델을 개선합니다.") -> 5초정도
  - UTF8 지원
 
 ## make_data 폴더
