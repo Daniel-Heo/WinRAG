@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
@@ -17,8 +17,8 @@
 #include "json.hpp"
 
 struct Token {
-    std::string key;  // ¹®ÀÚ¿­
-    int id;         // Á¤¼ö
+    std::string key;  // ë¬¸ìì—´
+    int id;         // ì •ìˆ˜
 };
 
 void loadTokenizer(const std::string& filename);
