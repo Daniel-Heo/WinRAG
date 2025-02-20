@@ -38,6 +38,7 @@ WASDK/
 *.back
 *.backup
 *.exe
+*.dll
 *_
 
 # 패키지 및 로컬 설치 파일
@@ -70,6 +71,7 @@ models/
 hub/
 include/
 libvc/
+lib/
 *.txt
 
 # 단기적으로 제외할 파일
