@@ -1,4 +1,4 @@
-﻿#include "wordpiece.h"
+﻿#include "sentencepiece.h"
 #include "weights.h"
 #include "math.h"
 
@@ -22,7 +22,8 @@ int test_mapping() {
 
 int main() {
     //SetConsoleOutputCP(CP_UTF8);
-	//test_wordpiece(); // 1.45초 // 0.033
+    
+	//test_sentencepiece(); // 1.45초 // 0.033
 	test_weights();
 	//test_mapping();
     //test_math();

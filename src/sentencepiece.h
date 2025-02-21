@@ -27,4 +27,4 @@ void loadTokenizer(const std::string& filename);
 std::vector<Token> tokenize(const std::string& text);
 
 // 테스트 함수
-int test_wordpiece();
+int test_sentencepiece();

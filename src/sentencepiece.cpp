@@ -1,8 +1,8 @@
-﻿// Tokenizer.cpp : Wordpiece Tokenizer 구현
+﻿// Tokenizer.cpp : sentencepiece Tokenizer 구현
 // 수행하기 이전의 문장: Jet makers feud over seat width with big orders at stake
-// WordPiece Tokenizer를 수행한 결과(wordpieces) : _J et _makers _fe ud _over _seat _width _with _big _orders _at _stake
+// sentencePiece Tokenizer를 수행한 결과: _J et _makers _fe ud _over _seat _width _with _big _orders _at _stake
 
-#include "wordpiece.h"
+#include "sentencepiece.h"
 
 using json = nlohmann::json;
 using namespace std;
@@ -174,7 +174,7 @@ std::vector<Token> tokenize(const std::string& text) {
     return tokens;
 }
 
-int test_wordpiece() {
+int test_sentencepiece() {
     std::string filename = "tokenizer.json";  // Python에서 저장한 매핑 파일
 
     //SetConsoleOutputCP(CP_UTF8);

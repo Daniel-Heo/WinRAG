@@ -1,7 +1,14 @@
-from transformers import AutoModel, AutoConfig
+from transformers import AutoModel, AutoConfig, AutoTokenizer
 
+"""
+WordPiece - BertTokenizer,	DistilBertTokenizer
+SentencePiece - T5Tokenizer, XLNetTokenizer, AlbertTokenizer
+BPE - RobertaTokenizer, GPT2Tokenizer
+Byte-Level BPE - OpenAI GPT2, Llama
+"""
 def print_model_architecture(model_name):
     # 모델 구성(Config) 로드
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     config = AutoConfig.from_pretrained(model_name)
     model = AutoModel.from_pretrained(model_name)
     
@@ -13,10 +20,14 @@ def print_model_architecture(model_name):
     model_dtype = next(model.parameters()).dtype
     print(f"Model dtype: {model_dtype}")
 
+    # 토크나이저 종류 출력 : BPE/WordPiece / SentencePiece 등
+    print(f"Tokenizer:  {tokenizer.__class__}")
+    print(tokenizer)
+
     # 모델 출력
     print(model)
     
 
 # 모델 확인
-print_model_architecture("deepseek-ai/DeepSeek-R1-Distill-Qwen-14B")
+print_model_architecture("skt/kogpt2-base-v2")
 
