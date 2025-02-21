@@ -47,22 +47,6 @@
 // 스레드 풀 : 스레드 생성 / 소멸 오버헤드가 없어지고, 작업 분배가 안정적.
 #include "lsh.h"
 
-#include <windows.h>
-#include <vector>
-#include <unordered_map>
-#include <algorithm>
-#include <cmath>
-#include <iostream>
-#include <fstream>
-#include <string>
-#include <random>
-#include <thread>
-#include <mutex>
-#include <queue>
-#include <condition_variable>
-#include <emmintrin.h> // SSE2
-#include <memory>      // aligned_alloc
-
 /****************************************************************
 * Class Name: WeightEntry
 * Description: 가중치 벡터와 관련 데이터를 저장하는 구조체로, 16바이트 정렬된 메모리를 사용하며 이동 연산만 지원
@@ -657,17 +641,17 @@ hashTables[t][hash]의 키(hash)는 uint32_t로 저장되지만, 실질적으로
 */
 int test_lsh() {
     try {
-        WeightIndex index(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
+        WeightIndex db(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
 
-        if (index.Load()) std::cout << "Loaded existing index\n"; // 기존 인덱스 로드 시도
+        if (db.Load()) std::cout << "Loaded existing db\n"; // 기존 인덱스 로드 시도
 
         // 테스트 데이터 추가
-        index.AddWeight({ 1.0f, 2.0f, 3.0f }, "C:\\data\\file1.txt");
-        index.AddWeight({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
-        index.AddWeight({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
+        db.AddWeight({ 1.0f, 2.0f, 3.0f }, "C:\\data\\file1.txt");
+        db.AddWeight({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
+        db.AddWeight({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
 
         std::vector<float> query = { 1.2f, 2.2f, 3.2f };
-        auto results = index.FindNearest(query, 2); // 2개의 최근접 이웃 검색
+        auto results = db.FindNearest(query, 2); // 2개의 최근접 이웃 검색
 
         std::cout << "Found " << results.size() << " nearest weights:\n";
         for (const auto& result : results) {
@@ -676,7 +660,7 @@ int test_lsh() {
                 << ", File: " << result.first.filePath << "\n";
         }
 
-        if (index.Sync()) std::cout << "Index saved successfully\n"; // 인덱스 저장
+        if (db.Sync()) std::cout << "db saved successfully\n"; // 인덱스 저장
     }
     catch (const std::length_error& e) {
         std::cerr << "Length error: " << e.what() << "\n"; // 크기 관련 예외 처리
