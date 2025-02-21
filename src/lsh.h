@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 #include <windows.h>
 #include <vector>
 #include <unordered_map>
@@ -16,10 +16,10 @@
 #include <memory>      // aligned_alloc
 #include <functional>
 
-#define SIMD_TYPE 1 // 0: SSE2 ªÁøÎ,  1: AVX2+FMA3 ªÁøÎ
+#define SIMD_TYPE 1 // 0: SSE2 ÏÇ¨Ïö©,  1: AVX2+FMA3 ÏÇ¨Ïö©
 
 #if SIMD_TYPE == 1
-#include <immintrin.h>  // AVX, AVX2, FMA3, SSE ∞¸∑√ «Ï¥ı
+#include <immintrin.h>  // AVX, AVX2, FMA3, SSE Í¥ÄÎ†® Ìó§Îçî
 #else
 #include <emmintrin.h> // SSE2
 #endif
