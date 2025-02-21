@@ -268,7 +268,7 @@ void NormalizeVector(float* vec, size_t size) {
 * TODO : 32바이트 정렬된 2D 벡터 사용을 하면 성능이 향상될 수 있음 ( 테스트 해본 바로는 에러가 심함 )
 * Description: 벡터를 SIMD를 사용하여 평균을 낸다.
 * Parameters:
-*   - matrix: 평균을 계산할 벡터 포인터
+*   - matrix: 평균을 계산할 벡터
 * Return: 없음
 * Date: 2025-02-21
 ****************************************************************/
@@ -370,11 +370,11 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
 }
 
 /****************************************************************
-* Class Name: WeightIndex
+* Class Name: SimilarityDB
 * Description: LSH 기반 가중치 인덱스를 관리하며, 코사인 유사도로 k-NN 검색 제공
 * Date: 2025-02-21
 ****************************************************************/
-class WeightIndex {
+class SimilarityDB {
 private:
     std::vector<WeightEntry> weights;           // 저장된 가중치 엔트리
     int vectorDim;                              // 벡터 차원 수
@@ -497,8 +497,8 @@ private:
 
 public:
     /****************************************************************
-    * Function Name: WeightIndex
-    * Description: WeightIndex 객체를 초기화하고 해시 테이블 및 초평면 설정
+    * Function Name: SimilarityDB
+    * Description: SimilarityDB 객체를 초기화하고 해시 테이블 및 초평면 설정
     * Parameters:
     *   - dimension: 벡터 차원 수
     *   - tables: 해시 테이블 수 (기본값 5)
@@ -506,11 +506,11 @@ public:
     * Return: 없음 (생성자)
     * Date: 2025-02-21
     ****************************************************************/
-    WeightIndex(int dimension, int tables = 5, int bits = 8)
+    SimilarityDB(int dimension, int tables = 5, int bits = 8)
         : vectorDim(dimension), numHashTables(tables), hashSize(bits),
         threadPool(std::thread::hardware_concurrency()) {
         if (tables <= 0 || bits <= 0 || dimension <= 0) {
-            throw std::invalid_argument("Invalid WeightIndex parameters");
+            throw std::invalid_argument("Invalid SimilarityDB parameters");
         }
         if (tables > static_cast<int>(hashTables.max_size())) {
             std::cerr << "Error: numHashTables exceeds max_size: " << hashTables.max_size() << "\n";
@@ -705,7 +705,7 @@ public:
 
 /****************************************************************
 * Function Name: main
-* Description: WeightIndex 클래스의 사용 예제 실행
+* Description: SimilarityDB 클래스의 사용 예제 실행
 * Parameters: 없음
 * Return: 프로그램 종료 코드 (int)
 * Date: 2025-02-21
@@ -764,17 +764,17 @@ int test_mean() {
 
 int test_similarity_db() {
     try {
-        WeightIndex db(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
+        SimilarityDB sdb(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
 
-        if (db.Load()) std::cout << "Loaded existing db\n"; // 기존 인덱스 로드 시도
+        if (sdb.Load()) std::cout << "Loaded existing db\n"; // 기존 인덱스 로드 시도
 
         // 테스트 데이터 추가
-        db.AddWeight({ 1.0f, 2.0f, 3.0f }, "C:\\data\\file1.txt");
-        db.AddWeight({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
-        db.AddWeight({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
+        sdb.AddWeight({ 1.0f, 2.0f, 3.0f }, "C:\\data\\file1.txt");
+        sdb.AddWeight({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
+        sdb.AddWeight({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
 
         std::vector<float> query = { 1.2f, 2.2f, 3.2f };
-        auto results = db.FindNearest(query, 2); // 2개의 최근접 이웃 검색
+        auto results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
 
         std::cout << "Found " << results.size() << " nearest weights:\n";
         for (const auto& result : results) {
@@ -783,7 +783,7 @@ int test_similarity_db() {
                 << ", File: " << result.first.filePath << "\n";
         }
 
-        if (db.Sync()) std::cout << "db saved successfully\n"; // 인덱스 저장
+        if (sdb.Sync()) std::cout << "db saved successfully\n"; // 인덱스 저장
     }
     catch (const std::length_error& e) {
         std::cerr << "Length error: " << e.what() << "\n"; // 크기 관련 예외 처리

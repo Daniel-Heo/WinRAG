@@ -44,8 +44,8 @@ int main() {
 	//test_weights();
 	//test_math();
 	//test_mapping();
-	//test_similarity_db();
-	test_mean();
+	test_similarity_db();
+	//test_mean();
     
     return 0;
 }
