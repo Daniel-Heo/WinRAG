@@ -1,7 +1,7 @@
 ﻿#include "sentencepiece.h"
 #include "weights.h"
 #include "math.h"
-#include "lsh.h"
+#include "similarity_db.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
@@ -44,7 +44,8 @@ int main() {
 	//test_weights();
 	//test_math();
 	//test_mapping();
-	test_lsh();
+	//test_similarity_db();
+	test_mean();
     
     return 0;
 }

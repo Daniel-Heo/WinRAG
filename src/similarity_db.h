@@ -27,4 +27,5 @@
 #define INDEX_FILENAME "vector_db.index"
 #define LINK_FILENAME "vector_db.data"
 
-int test_lsh();
+int test_similarity_db();
+int test_mean();

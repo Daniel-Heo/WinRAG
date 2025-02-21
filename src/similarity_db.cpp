@@ -1,6 +1,6 @@
-﻿// lsh.cpp
-// Locality - Sensitive Hashing
-// Random Projection 기반 LSH를 사용하여 코사인 유사도에 적합한 인덱싱을 구현
+﻿// similarity_db.cpp ( 유사도 DB )
+// --------------------------------------------------------------------------------------------------
+// Random Projection 기반 LSH(Locality Sensitive Hashing)를 사용하여 코사인 유사도에 적합한 인덱싱을 구현
 // 검색 시 동일한 버킷 내에서만 코사인 유사도를 계산하여 효율성을 높인다.
 // 
 // LSH 구현 세부사항 :
@@ -45,7 +45,7 @@
 //     성능 개선 효과 :
 // 메모리 정렬 : SIMD 연산이 더 효율적으로 실행되며, 캐시 라인 활용도가 높아짐.
 // 스레드 풀 : 스레드 생성 / 소멸 오버헤드가 없어지고, 작업 분배가 안정적.
-#include "lsh.h"
+#include "similarity_db.h"
 
 /****************************************************************
 * Class Name: WeightEntry
@@ -261,6 +261,67 @@ void NormalizeVector(float* vec, size_t size) {
 #endif
         for (; i < size; i++) vec[i] /= norm; // 나머지 처리
     }
+}
+
+/****************************************************************
+* Function Name: MeanVector
+* TODO : 32바이트 정렬된 2D 벡터 사용을 하면 성능이 향상될 수 있음 ( 테스트 해본 바로는 에러가 심함 )
+* Description: 벡터를 SIMD를 사용하여 평균을 낸다.
+* Parameters:
+*   - matrix: 평균을 계산할 벡터 포인터
+* Return: 없음
+* Date: 2025-02-21
+****************************************************************/
+std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix) {
+    int rows = matrix.size();
+    int cols = matrix[0].size();
+    std::vector<float> result(cols, 0.0f);
+
+    for (int i = 0; i < cols; i++) {
+#if SIMD_TYPE == 1  // AVX2 + FMA3 사용
+        __m256 sum_vec = _mm256_setzero_ps();  // 256비트 (8개 float) 0 초기화
+        int j = 0;
+
+        // SIMD 8개씩 더하기 (개별 값 로드)
+        for (; j + 8 <= rows; j += 8) {
+            __m256 row_data = _mm256_set_ps(
+                matrix[j + 7][i], matrix[j + 6][i], matrix[j + 5][i], matrix[j + 4][i],
+                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j][i]
+            );
+            sum_vec = _mm256_add_ps(sum_vec, row_data);
+        }
+
+        // SIMD 결과 합산
+        float temp[8];
+        _mm256_storeu_ps(temp, sum_vec);  // Unaligned Store
+        float sum = temp[0] + temp[1] + temp[2] + temp[3] + temp[4] + temp[5] + temp[6] + temp[7];
+
+#elif SIMD_TYPE == 0  // SSE2 사용
+        __m128 sum_vec = _mm_setzero_ps();  // 128비트 (4개 float) 0 초기화
+        int j = 0;
+
+        // SIMD 4개씩 더하기 (개별 값 로드)
+        for (; j + 4 <= rows; j += 4) {
+            __m128 row_data = _mm_set_ps(
+                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j][i]
+            );
+            sum_vec = _mm_add_ps(sum_vec, row_data);
+        }
+
+        // SIMD 결과 합산
+        float temp[4];
+        _mm_storeu_ps(temp, sum_vec);  // Unaligned Store
+        float sum = temp[0] + temp[1] + temp[2] + temp[3];
+#endif
+
+        // 남은 요소 처리
+        for (; j < rows; j++) {
+            sum += matrix[j][i];
+        }
+
+        result[i] = sum / rows;
+    }
+    return result;
 }
 
 /****************************************************************
@@ -682,7 +743,26 @@ hashTables[t][hash]의 키(hash)는 uint32_t로 저장되지만, 실질적으로
 단점: 비트 수가 많아지면 버킷 수가 기하급수적으로 증가하여 각 버킷에 속하는 데이터가 적어질 수 있고, 계산 비용이 증가합니다.
 8라는 값: 적당한 해상도와 계산 비용의 균형을 맞춘 예시 값입니다. 데이터 분포에 따라 조정 가능합니다.
 */
-int test_lsh() {
+// 테스트 코드
+int test_mean() {
+    constexpr int rows = 16;
+    constexpr int cols = 8;
+
+    // 2D 벡터 생성
+    std::vector<std::vector<float>> matrix(rows, std::vector<float>(cols, 1.0f));  // 모든 값 1.0f로 초기화
+
+    // 평균 계산
+    std::vector<float> result = MeanVector(matrix);
+
+    // 결과 출력
+    for (float val : result) {
+        std::cout << val << " ";
+    }
+    std::cout << std::endl;
+    return 0;
+}
+
+int test_similarity_db() {
     try {
         WeightIndex db(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
 
