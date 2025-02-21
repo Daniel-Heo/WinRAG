@@ -1,6 +1,7 @@
 ﻿#include "sentencepiece.h"
 #include "weights.h"
 #include "math.h"
+#include "lsh.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
@@ -41,8 +42,10 @@ int main() {
     
 	//test_sentencepiece(); // 1.45초 // 0.033
 	//test_weights();
-	test_mapping();
-    //test_math();
+	//test_math();
+	//test_mapping();
+	test_lsh();
+    
     return 0;
 }
 

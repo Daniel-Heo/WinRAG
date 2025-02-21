@@ -14,7 +14,7 @@ std::vector<float> MeanOfMatrix(std::vector<std::vector<float>> matrix) {
 }
 
 // 두개의 벡터의 cosine similarity를 구하는 함수
-float CosineSimilarity(const std::vector<float>& a, const std::vector<float>& b) {
+float CosineSimilarityOfMatrix(const std::vector<float>& a, const std::vector<float>& b) {
 	float inner_product = std::inner_product(a.begin(), a.end(), b.begin(), 0.0f);
 	float norm_a = std::inner_product(a.begin(), a.end(), a.begin(), 0.0f);
 	float norm_b = std::inner_product(b.begin(), b.end(), b.begin(), 0.0f);
@@ -63,6 +63,6 @@ int test_math() {
 	a = Normalize(a);
 	b = Normalize(b);
 	std::cout << "Cosine similarity:" << std::endl;
-	std::cout << CosineSimilarity(a, b) << std::endl;
+	std::cout << CosineSimilarityOfMatrix(a, b) << std::endl;
 	return 0;
 }
