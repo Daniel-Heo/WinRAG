@@ -7,7 +7,7 @@ int test_mapping() {
     loadTokenizer("tokenizer.json");
 
 	// 가중치 파일 로드
-    WeightLoader loader("embedding_weights.npy");
+    WeightLoader weightsData("embedding_weights.npy");
 
     // 테스트할 문장 입력
    // std::string text = "Deep learning improves AI models";
@@ -22,10 +22,10 @@ int test_mapping() {
 	int lenCount;
 	for (const auto& token : tokens) {
 		std::cout << token.key << " ";
-		weights.push_back(loader.get(token.id));
+		weights.push_back(weightsData.get(token.id));
 		std::cout << "Weight Data[";
 		lenCount = 0;
-		for (const auto& w : loader.get(token.id)) {
+		for (const auto& w : weightsData.get(token.id)) {
 			std::cout << w << " ";
 			lenCount++;
 			if (lenCount > 10) break;
