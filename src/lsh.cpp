@@ -215,26 +215,51 @@ public:
 * Date: 2025-02-21
 ****************************************************************/
 void NormalizeVector(float* vec, size_t size) {
-    if (!vec) return; // nullptr 체크
-    __m128 sum = _mm_setzero_ps(); // SSE 레지스터로 합 초기화
+    if (!vec) return;  // nullptr 체크
     size_t i = 0;
-    // 4개씩 병렬로 벡터 제곱 합 계산
+    float norm = 0.0f;
+
+#if SIMD_TYPE == 1  // AVX2 + FMA3 코드
+    __m256 sum = _mm256_setzero_ps(); // 256비트 레지스터(8개 float)
+    for (; i + 7 < size; i += 8) {
+        __m256 v = _mm256_loadu_ps(vec + i);
+        sum = _mm256_fmadd_ps(v, v, sum);  // FMA3: sum += v * v
+    }
+    float sums[8];
+    _mm256_storeu_ps(sums, sum);
+    norm = sums[0] + sums[1] + sums[2] + sums[3] + sums[4] + sums[5] + sums[6] + sums[7];
+
+#elif SIMD_TYPE == 0  // SSE2 코드
+    __m128 sum = _mm_setzero_ps();
     for (; i + 3 < size; i += 4) {
-        __m128 v = _mm_load_ps(vec + i);
+        __m128 v = _mm_loadu_ps(vec + i);
         sum = _mm_add_ps(sum, _mm_mul_ps(v, v));
     }
     float sums[4];
-    _mm_store_ps(sums, sum); // SSE 결과를 일반 메모리로 저장
-    float norm = sums[0] + sums[1] + sums[2] + sums[3];
-    for (; i < size; i++) norm += vec[i] * vec[i]; // 남은 요소 처리
+    _mm_storeu_ps(sums, sum);
+    norm = sums[0] + sums[1] + sums[2] + sums[3];
+
+#endif
+
+    // 남은 요소 처리
+    for (; i < size; i++) norm += vec[i] * vec[i];
+
     norm = sqrtf(norm); // L2 노름 계산
     if (norm > 0) {
-        __m128 normVec = _mm_set1_ps(1.0f / norm); // 정규화 상수
-        for (i = 0; i + 3 < size; i += 4) {
-            __m128 v = _mm_load_ps(vec + i);
-            _mm_store_ps(vec + i, _mm_mul_ps(v, normVec)); // 병렬 정규화
+#if SIMD_TYPE == 1  // AVX2 + FMA3 정규화
+        __m256 normVec = _mm256_set1_ps(1.0f / norm);
+        for (i = 0; i + 7 < size; i += 8) {
+            __m256 v = _mm256_loadu_ps(vec + i);
+            _mm256_storeu_ps(vec + i, _mm256_mul_ps(v, normVec));
         }
-        for (; i < size; i++) vec[i] /= norm; // 남은 요소 처리
+#elif SIMD_TYPE == 0  // SSE2 정규화
+        __m128 normVec = _mm_set1_ps(1.0f / norm);
+        for (i = 0; i + 3 < size; i += 4) {
+            __m128 v = _mm_loadu_ps(vec + i);
+            _mm_storeu_ps(vec + i, _mm_mul_ps(v, normVec));
+        }
+#endif
+        for (; i < size; i++) vec[i] /= norm; // 나머지 처리
     }
 }
 
@@ -250,18 +275,36 @@ void NormalizeVector(float* vec, size_t size) {
 ****************************************************************/
 float CosineSimilarity(const float* v1, const float* v2, size_t size) {
     if (!v1 || !v2) return 0.0f; // nullptr 체크
-    __m128 sum = _mm_setzero_ps(); // 내적 합 초기화
     size_t i = 0;
-    // 4개씩 병렬로 내적 계산
+    float dot = 0.0f;
+
+#if SIMD_TYPE == 1  // AVX2 + FMA3 코드
+    __m256 sum = _mm256_setzero_ps(); // 256비트 레지스터(8개 float)
+    for (; i + 7 < size; i += 8) {
+        __m256 a = _mm256_loadu_ps(v1 + i);
+        __m256 b = _mm256_loadu_ps(v2 + i);
+        sum = _mm256_fmadd_ps(a, b, sum);  // FMA3: sum += a * b
+    }
+    float sums[8];
+    _mm256_storeu_ps(sums, sum);
+    dot = sums[0] + sums[1] + sums[2] + sums[3] + sums[4] + sums[5] + sums[6] + sums[7];
+
+#elif SIMD_TYPE == 0  // SSE2 코드
+    __m128 sum = _mm_setzero_ps();
     for (; i + 3 < size; i += 4) {
-        __m128 a = _mm_load_ps(v1 + i);
-        __m128 b = _mm_load_ps(v2 + i);
+        __m128 a = _mm_loadu_ps(v1 + i);
+        __m128 b = _mm_loadu_ps(v2 + i);
         sum = _mm_add_ps(sum, _mm_mul_ps(a, b));
     }
     float sums[4];
-    _mm_store_ps(sums, sum);
-    float dot = sums[0] + sums[1] + sums[2] + sums[3];
-    for (; i < size; i++) dot += v1[i] * v2[i]; // 나머지 처리
+    _mm_storeu_ps(sums, sum);
+    dot = sums[0] + sums[1] + sums[2] + sums[3];
+
+#endif
+
+    // 남은 요소 처리
+    for (; i < size; i++) dot += v1[i] * v2[i];
+
     return dot; // 노멀라이즈된 벡터이므로 분모 생략
 }
 

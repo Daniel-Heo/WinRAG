@@ -13,9 +13,16 @@
 #include <mutex>
 #include <queue>
 #include <condition_variable>
-#include <emmintrin.h> // SSE2
 #include <memory>      // aligned_alloc
 #include <functional>
+
+#define SIMD_TYPE 1 // 0: SSE2 사용,  1: AVX2+FMA3 사용
+
+#if SIMD_TYPE == 1
+#include <immintrin.h>  // AVX, AVX2, FMA3, SSE 관련 헤더
+#else
+#include <emmintrin.h> // SSE2
+#endif
 
 #define INDEX_FILENAME "vector_db.index"
 #define LINK_FILENAME "vector_db.data"
