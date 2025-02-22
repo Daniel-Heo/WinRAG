@@ -27,5 +27,9 @@
 #define INDEX_FILENAME "sdb.index"
 #define LINK_FILENAME "sdb.data"
 
+void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
+std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
+float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
+
 int test_similarity_db();
 int test_mean();
