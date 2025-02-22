@@ -48,164 +48,6 @@
 #include "similarity_db.h"
 
 /****************************************************************
-* Class Name: WeightEntry
-* Description: 가중치 벡터와 관련 데이터를 저장하는 구조체로, 16바이트 정렬된 메모리를 사용하며 이동 연산만 지원
-* Date: 2025-02-21
-****************************************************************/
-struct WeightEntry {
-    float* vector;     // 16바이트 정렬된 가중치 벡터 데이터
-    size_t vecSize;    // 벡터의 크기 (차원 수)
-    int id;            // 고유 식별자
-    char filePath[256]; // 최대 256자의 파일 경로
-
-    // 기본 생성자: 지정된 크기로 벡터를 초기화하고 filePath를 0으로 채움
-    WeightEntry(size_t size = 0) : vector(nullptr), vecSize(size), id(0) {
-        if (size > 0) {
-            vector = static_cast<float*>(_aligned_malloc(size * sizeof(float), 16));
-            if (!vector) throw std::bad_alloc(); // 메모리 할당 실패 시 예외 발생
-        }
-        memset(filePath, 0, sizeof(filePath)); // filePath를 안전하게 초기화
-    }
-
-    // 소멸자: 동적으로 할당된 벡터 메모리를 해제
-    ~WeightEntry() { if (vector) _aligned_free(vector); }
-
-    // 복사 생성자 삭제: 복사를 방지하여 의도치 않은 메모리 복제를 막음
-    WeightEntry(const WeightEntry&) = delete;
-
-    // 이동 생성자: 리소스를 안전하게 이동하며 원본을 초기화
-    WeightEntry(WeightEntry&& other) noexcept : vector(other.vector), vecSize(other.vecSize), id(other.id) {
-        if (other.filePath[0] != '\0') {
-            memcpy(filePath, other.filePath, sizeof(filePath)); // 파일 경로 복사
-        }
-        else {
-            memset(filePath, 0, sizeof(filePath)); // 빈 경로로 초기화
-        }
-        other.vector = nullptr; // 원본 포인터를 무효화
-        other.vecSize = 0;
-        memset(other.filePath, 0, sizeof(filePath)); // 원본 경로 초기화
-    }
-
-    // 이동 대입 연산자: 기존 리소스를 해제하고 새 리소스를 이동
-    WeightEntry& operator=(WeightEntry&& other) noexcept {
-        if (this != &other) {
-            if (vector) _aligned_free(vector); // 기존 메모리 해제
-            vector = other.vector;
-            vecSize = other.vecSize;
-            id = other.id;
-            if (other.filePath[0] != '\0') {
-                memcpy(filePath, other.filePath, sizeof(filePath)); // 파일 경로 이동
-            }
-            else {
-                memset(filePath, 0, sizeof(filePath));
-            }
-            other.vector = nullptr; // 원본 초기화
-            other.vecSize = 0;
-            memset(other.filePath, 0, sizeof(filePath));
-        }
-        return *this;
-    }
-};
-
-/****************************************************************
-* Class Name: ThreadPool
-* Description: 고정된 스레드 수로 작업 큐를 처리하는 스레드 풀 구현
-* Date: 2025-02-21
-****************************************************************/
-class ThreadPool {
-private:
-    std::vector<std::thread> workers;       // 작업을 처리하는 스레드 배열
-    std::queue<std::function<void()>> tasks;// 작업 큐
-    mutable std::mutex queueMutex;          // 큐 접근을 동기화하는 뮤텍스 (const 메서드에서도 사용 가능)
-    std::condition_variable condition;      // 스레드 대기를 위한 조건 변수
-    bool stop;                              // 스레드 풀 종료 플래그
-
-public:
-    /****************************************************************
-    * Function Name: ThreadPool
-    * Description: 지정된 스레드 수로 스레드 풀을 초기화하고 작업 대기 시작
-    * Parameters:
-    *   - numThreads: 생성할 스레드 수
-    * Return: 없음 (생성자)
-    * Date: 2025-02-21
-    ****************************************************************/
-    ThreadPool(size_t numThreads) : stop(false) {
-        for (size_t i = 0; i < numThreads; i++) {
-            workers.emplace_back([this] {
-                while (true) {
-                    std::function<void()> task;
-                    {
-                        std::unique_lock<std::mutex> lock(queueMutex);
-                        condition.wait(lock, [this] { return stop || !tasks.empty(); });
-                        if (stop && tasks.empty()) return; // 종료 조건
-                        task = std::move(tasks.front());   // 작업 가져오기
-                        tasks.pop();
-                    }
-                    task(); // 작업 실행
-                }
-                });
-        }
-    }
-
-    /****************************************************************
-    * Function Name: ~ThreadPool
-    * Description: 스레드 풀을 종료하고 모든 스레드가 완료될 때까지 대기
-    * Parameters: 없음 (소멸자)
-    * Return: 없음
-    * Date: 2025-02-21
-    ****************************************************************/
-    ~ThreadPool() {
-        {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            stop = true; // 종료 신호 설정
-        }
-        condition.notify_all(); // 모든 스레드 깨우기
-        for (auto& worker : workers) worker.join(); // 스레드 종료 대기
-    }
-
-    /****************************************************************
-    * Function Name: Enqueue
-    * Description: 작업 큐에 새 작업을 추가하고 스레드를 깨움
-    * Parameters:
-    *   - task: 실행할 함수 객체
-    * Return: 없음
-    * Date: 2025-02-21
-    ****************************************************************/
-    void Enqueue(std::function<void()> task) {
-        {
-            std::unique_lock<std::mutex> lock(queueMutex);
-            if (stop) return; // 종료 상태면 추가하지 않음
-            tasks.emplace(std::move(task));
-        }
-        condition.notify_one(); // 대기 중인 스레드 하나 깨우기
-    }
-
-    /****************************************************************
-    * Function Name: GetTaskCount
-    * Description: 현재 작업 큐에 남아 있는 작업 수 반환
-    * Parameters: 없음
-    * Return: 작업 수 (size_t)
-    * Date: 2025-02-21
-    ****************************************************************/
-    size_t GetTaskCount() const {
-        std::unique_lock<std::mutex> lock(queueMutex);
-        return tasks.size();
-    }
-
-    /****************************************************************
-    * Function Name: IsEmpty
-    * Description: 작업 큐가 비어 있는지 확인
-    * Parameters: 없음
-    * Return: 비어 있으면 true, 아니면 false
-    * Date: 2025-02-21
-    ****************************************************************/
-    bool IsEmpty() const {
-        std::unique_lock<std::mutex> lock(queueMutex);
-        return tasks.empty();
-    }
-};
-
-/****************************************************************
 * Function Name: NormalizeVector
 * Description: 벡터를 SIMD를 사용하여 노멀라이즈 (L2 정규화)
 * Parameters:
@@ -370,389 +212,370 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
 }
 
 /****************************************************************
-* Class Name: SimilarityDB
-* Description: LSH 기반 가중치 인덱스를 관리하며, 코사인 유사도로 k-NN 검색 제공
+* Function Name: SimilarityDB
+* Description: SimilarityDB 객체를 초기화하고 해시 테이블 및 초평면 설정
+* Parameters:
+*   - dimension: 벡터 차원 수
+*   - tables: 해시 테이블 수 (기본값 5)
+*   - bits: 해시 비트 수 (기본값 8)
+* Return: 없음 (생성자)
 * Date: 2025-02-21
 ****************************************************************/
-class SimilarityDB {
-private:
-    std::vector<WeightEntry> weights;           // 저장된 가중치 엔트리
-	std::vector<int> weightsIndex;              // 가중치 인덱스 : weights의 인덱스를 저장
-    int vectorDim;                              // 벡터 차원 수
-    int numHashTables;                          // 해시 테이블 수
-    int hashSize;                               // 각 해시 함수의 비트 수
-    std::vector<std::vector<float>> randomPlanes; // LSH용 랜덤 초평면
-    std::vector<std::unordered_map<uint32_t, std::vector<int>>> hashTables; // 해시 테이블 배열
-    ThreadPool threadPool;                      // 병렬 검색용 스레드 풀
-    const std::string INDEX_FILE = INDEX_FILENAME; // 인덱스 파일 경로
-    const std::string LINK_FILE = LINK_FILENAME;    // 링크 파일 경로
+SimilarityDB::SimilarityDB(int dimension, int tables, int bits)
+    : vectorDim(dimension), numHashTables(tables), hashSize(bits),
+    threadPool(std::thread::hardware_concurrency()) {
+    if (tables <= 0 || bits <= 0 || dimension <= 0) {
+        throw std::invalid_argument("Invalid SimilarityDB parameters");
+    }
+    if (tables > static_cast<int>(hashTables.max_size())) {
+        std::cerr << "Error: numHashTables exceeds max_size: " << hashTables.max_size() << "\n";
+        throw std::length_error("Too many hash tables");
+    }
+    hashTables.resize(numHashTables); // 해시 테이블 크기 설정
+    GenerateRandomPlanes();           // 초평면 생성
+}
 
-    /****************************************************************
-    * Function Name: GenerateRandomPlanes
-    * Description: LSH용 랜덤 초평면을 생성하고 노멀라이즈
-    * Parameters: 없음
-    * Return: 없음
-    * Date: 2025-02-21
-    ****************************************************************/
-    void GenerateRandomPlanes() {
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::normal_distribution<float> dist(0.0f, 1.0f);
 
-        size_t totalPlanes = numHashTables * hashSize;
-        if (totalPlanes > randomPlanes.max_size()) {
-            std::cerr << "Error: randomPlanes size exceeds max_size: " << randomPlanes.max_size() << "\n";
-            throw std::length_error("randomPlanes too large");
+/****************************************************************
+* Function Name: GenerateRandomPlanes
+* Description: LSH용 랜덤 초평면을 생성하고 노멀라이즈
+* Parameters: 없음
+* Return: 없음
+* Date: 2025-02-21
+****************************************************************/
+void SimilarityDB::GenerateRandomPlanes() {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<float> dist(0.0f, 1.0f);
+
+    size_t totalPlanes = numHashTables * hashSize;
+    if (totalPlanes > randomPlanes.max_size()) {
+        std::cerr << "Error: randomPlanes size exceeds max_size: " << randomPlanes.max_size() << "\n";
+        throw std::length_error("randomPlanes too large");
+    }
+    randomPlanes.resize(totalPlanes); // 초평면 배열 크기 조정
+    std::cout << "Generating " << totalPlanes << " random planes\n";
+
+    for (auto& plane : randomPlanes) {
+        if (vectorDim > plane.max_size()) {
+            std::cerr << "Error: vectorDim exceeds plane max_size: " << plane.max_size() << "\n";
+            throw std::length_error("plane vector too large");
         }
-        randomPlanes.resize(totalPlanes); // 초평면 배열 크기 조정
-        std::cout << "Generating " << totalPlanes << " random planes\n";
+        plane.resize(vectorDim); // 각 초평면의 차원 설정
+        for (float& v : plane) v = dist(gen); // 정규 분포로 값 생성
+        NormalizeVector(plane.data(), vectorDim); // 초평면 노멀라이즈
+    }
+}
 
-        for (auto& plane : randomPlanes) {
-            if (vectorDim > plane.max_size()) {
-                std::cerr << "Error: vectorDim exceeds plane max_size: " << plane.max_size() << "\n";
-                throw std::length_error("plane vector too large");
-            }
-            plane.resize(vectorDim); // 각 초평면의 차원 설정
-            for (float& v : plane) v = dist(gen); // 정규 분포로 값 생성
-            NormalizeVector(plane.data(), vectorDim); // 초평면 노멀라이즈
+/****************************************************************
+* Function Name: GetHash
+* Description: 주어진 벡터에 대해 LSH 해시 값을 계산
+* Parameters:
+*   - vec: 해시를 계산할 벡터
+*   - tableIdx: 사용할 해시 테이블 인덱스
+* Return: 계산된 해시 값 (uint32_t)
+* Date: 2025-02-21
+****************************************************************/
+uint32_t  SimilarityDB::GetHash(const float* vec, int tableIdx) {
+    if (tableIdx < 0 || tableIdx >= numHashTables) {
+        std::cerr << "Error: Invalid tableIdx: " << tableIdx << "\n";
+        return 0; // 오류 시 기본값 반환
+    }
+    uint32_t hash = 0;
+    for (int i = 0; i < hashSize; i++) {
+        size_t planeIdx = tableIdx * hashSize + i;
+        if (planeIdx >= randomPlanes.size()) {
+            std::cerr << "Error: planeIdx out of bounds: " << planeIdx << "\n";
+            return hash; // 범위 초과 시 중단
+        }
+        const auto& plane = randomPlanes[planeIdx];
+        float dot = CosineSimilarity(vec, plane.data(), vectorDim);
+        if (dot >= 0) hash |= (1 << i); // 양수면 비트 설정
+    }
+    return hash;
+}
+
+/****************************************************************
+* Function Name: IndexVector
+* Description: 주어진 가중치 인덱스를 모든 해시 테이블에 추가
+* Parameters:
+*   - idx: 인덱스할 가중치의 위치
+* Return: 없음
+* Date: 2025-02-21
+****************************************************************/
+void  SimilarityDB::IndexVector(int idx) {
+    if (idx < 0 || static_cast<size_t>(idx) >= weights.size()) {
+        std::cerr << "Error: Invalid idx: " << idx << "\n";
+        return;
+    }
+    for (int t = 0; t < numHashTables; t++) {
+        if (t >= static_cast<int>(hashTables.size())) {
+            std::cerr << "Error: hashTables index out of bounds: " << t << "\n";
+            continue;
+        }
+        uint32_t hash = GetHash(weights[idx].vector, t);
+        hashTables[t][hash].push_back(idx); // 해시 버킷에 인덱스 추가
+    }
+}
+
+/****************************************************************
+* Function Name: SearchTable
+* Description: 지정된 해시 테이블에서 쿼리와 동일한 해시 값을 가진 후보를 찾음
+* Parameters:
+*   - tableIdx: 검색할 해시 테이블 인덱스
+*   - query: 검색 쿼리 벡터
+*   - candidates: 후보 인덱스 집합 (참조)
+*   - mutex: 동기화를 위한 뮤텍스 (참조)
+* Return: 없음
+* Date: 2025-02-21
+****************************************************************/
+void  SimilarityDB::SearchTable(int tableIdx, const float* query, std::unordered_set<int>& candidates,
+    std::mutex& mutex) {
+    if (tableIdx < 0 || tableIdx >= static_cast<int>(hashTables.size())) {
+        std::cerr << "Error: Invalid tableIdx in SearchTable: " << tableIdx << "\n";
+        return;
+    }
+    uint32_t hash = GetHash(query, tableIdx);
+    auto it = hashTables[tableIdx].find(hash);
+    if (it != hashTables[tableIdx].end()) {
+        std::lock_guard<std::mutex> lock(mutex); // 동기화
+        for (int idx : it->second) {
+            candidates.insert(idx); // 동일 해시 버킷의 인덱스 추가
+        }
+    }
+}
+
+/****************************************************************
+* Function Name: Add
+* Description: 새 가중치 벡터와 파일 경로를 추가하고 인덱싱
+* Parameters:
+*   - vec: 추가할 가중치 벡터
+*   - filePath: 관련 파일 경로
+* Return: 성공 시 true, 실패 시 false
+* Date: 2025-02-21
+****************************************************************/
+bool  SimilarityDB::Add(const std::vector<float>& vec, const char* filePath) {
+    if (vec.size() != vectorDim || strlen(filePath) >= MAX_FILE_PATH) return false;
+
+    WeightEntry entry(vectorDim);
+    if (!entry.vector) return false;
+
+    memcpy(entry.vector, vec.data(), vectorDim * sizeof(float));
+    NormalizeVector(entry.vector, vectorDim); // 벡터 정규화
+    entry.id = weights.empty() ? 0 : weights.back().id + 1; // 새로운 ID 할당
+    strncpy_s(entry.filePath, filePath, MAX_FILE_PATH);
+
+    weights.push_back(std::move(entry));
+    weightsIndex.push_back(weights.size() - 1); // weights의 인덱스를 weightsIndex에 저장
+
+    IndexVector(weightsIndex.back()); // 새로 추가된 벡터를 해시 테이블에 인덱싱
+    return true;
+}
+
+/****************************************************************
+* Function Name: Delete
+* Description: 지정된 ID의 가중치를 삭제하고 인덱스를 업데이트
+* Parameters:
+*   - id: 삭제할 가중치의 ID
+* Return: 성공 시 true, 실패 시 false
+* Date: 2025-02-22
+****************************************************************/
+bool  SimilarityDB::Delete(int id) {
+    auto it = std::find(weightsIndex.begin(), weightsIndex.end(), id);
+    if (it == weightsIndex.end()) {
+        std::cerr << "Error: Weight with ID " << id << " not found\n";
+        return false;
+    }
+
+    int removeIndex = std::distance(weightsIndex.begin(), it); // weightsIndex 내에서 삭제할 위치 찾기
+    int actualIndex = *it; // weights에서 삭제할 실제 인덱스
+
+    // 1️⃣ weights에서 해당 가중치 제거
+    weights.erase(weights.begin() + actualIndex);
+
+    // 2️⃣ weightsIndex에서 제거
+    weightsIndex.erase(it);
+
+    // 3️⃣ 삭제한 인덱스 이후의 값들을 -1씩 조정
+    for (size_t i = removeIndex; i < weightsIndex.size(); ++i) {
+        weightsIndex[i]--; // -1 감소
+    }
+
+    // 4️⃣ 해시 테이블에서도 삭제
+    for (int t = 0; t < numHashTables; t++) {
+        for (auto& bucket : hashTables[t]) {
+            auto& indices = bucket.second;
+            indices.erase(std::remove(indices.begin(), indices.end(), actualIndex), indices.end());
         }
     }
 
-    /****************************************************************
-    * Function Name: GetHash
-    * Description: 주어진 벡터에 대해 LSH 해시 값을 계산
+    std::cout << "Successfully deleted weight with ID " << id << "\n";
+    return true;
+}
+
+/****************************************************************
+    * Function Name: FindNearest
+    * Description: 쿼리 벡터에 대해 k개의 가장 가까운 가중치를 코사인 유사도로 검색
+    *              k보다 적은 수의 이웃이 검색되면 검색된 수만큼 반환, 없으면 빈 벡터 반환
     * Parameters:
-    *   - vec: 해시를 계산할 벡터
-    *   - tableIdx: 사용할 해시 테이블 인덱스
-    * Return: 계산된 해시 값 (uint32_t)
+    *   - queryVec: 검색 쿼리 벡터
+    *   - k: 반환할 최대 이웃 수
+    * Return: 가중치와 유사도 쌍의 벡터 (검색된 수에 따라 크기 변동, 없으면 size() == 0)
+    * Author: Grok 3 by xAI
     * Date: 2025-02-21
     ****************************************************************/
-    uint32_t GetHash(const float* vec, int tableIdx) {
-        if (tableIdx < 0 || tableIdx >= numHashTables) {
-            std::cerr << "Error: Invalid tableIdx: " << tableIdx << "\n";
-            return 0; // 오류 시 기본값 반환
-        }
-        uint32_t hash = 0;
-        for (int i = 0; i < hashSize; i++) {
-            size_t planeIdx = tableIdx * hashSize + i;
-            if (planeIdx >= randomPlanes.size()) {
-                std::cerr << "Error: planeIdx out of bounds: " << planeIdx << "\n";
-                return hash; // 범위 초과 시 중단
-            }
-            const auto& plane = randomPlanes[planeIdx];
-            float dot = CosineSimilarity(vec, plane.data(), vectorDim);
-            if (dot >= 0) hash |= (1 << i); // 양수면 비트 설정
-        }
-        return hash;
+std::vector<std::pair<WeightEntry, float>>  SimilarityDB::FindNearest(const std::vector<float>& queryVec, int k) {
+    if (queryVec.size() != vectorDim || weights.empty() || weightsIndex.empty()) {
+        return {}; // 가중치가 없으면 빈 결과 반환
     }
 
-    /****************************************************************
-    * Function Name: IndexVector
-    * Description: 주어진 가중치 인덱스를 모든 해시 테이블에 추가
-    * Parameters:
-    *   - idx: 인덱스할 가중치의 위치
-    * Return: 없음
-    * Date: 2025-02-21
-    ****************************************************************/
-    void IndexVector(int idx) {
-        if (idx < 0 || static_cast<size_t>(idx) >= weights.size()) {
-            std::cerr << "Error: Invalid idx: " << idx << "\n";
-            return;
-        }
-        for (int t = 0; t < numHashTables; t++) {
-            if (t >= static_cast<int>(hashTables.size())) {
-                std::cerr << "Error: hashTables index out of bounds: " << t << "\n";
-                continue;
-            }
-            uint32_t hash = GetHash(weights[idx].vector, t);
-            hashTables[t][hash].push_back(idx); // 해시 버킷에 인덱스 추가
-        }
+    // 쿼리 벡터 정렬된 메모리 할당
+    float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
+    if (!normalizedQuery) return {};
+    memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
+    NormalizeVector(normalizedQuery, vectorDim);
+
+    std::unordered_set<int> candidates;
+    std::mutex candidatesMutex;
+
+    std::condition_variable cv;
+    std::mutex cvMutex;
+    int threadsFinished = 0;  // 완료된 스레드 개수
+
+    for (int t = 0; t < numHashTables; t++) {
+        threadPool.Enqueue([this, t, normalizedQuery, &candidates, &candidatesMutex, &cv, &cvMutex, &threadsFinished]() {
+            SearchTable(t, normalizedQuery, candidates, candidatesMutex);
+
+            // 스레드 완료 후 알림
+            std::lock_guard<std::mutex> lock(cvMutex);
+            threadsFinished++;
+            cv.notify_one();  // 대기 중인 스레드 깨우기
+            });
     }
 
-    /****************************************************************
-    * Function Name: SearchTable
-    * Description: 지정된 해시 테이블에서 쿼리와 동일한 해시 값을 가진 후보를 찾음
-    * Parameters:
-    *   - tableIdx: 검색할 해시 테이블 인덱스
-    *   - query: 검색 쿼리 벡터
-    *   - candidates: 후보 인덱스 집합 (참조)
-    *   - mutex: 동기화를 위한 뮤텍스 (참조)
-    * Return: 없음
-    * Date: 2025-02-21
-    ****************************************************************/
-    void SearchTable(int tableIdx, const float* query, std::unordered_set<int>& candidates,
-        std::mutex& mutex) {
-        if (tableIdx < 0 || tableIdx >= static_cast<int>(hashTables.size())) {
-            std::cerr << "Error: Invalid tableIdx in SearchTable: " << tableIdx << "\n";
-            return;
-        }
-        uint32_t hash = GetHash(query, tableIdx);
-        auto it = hashTables[tableIdx].find(hash);
-        if (it != hashTables[tableIdx].end()) {
-            std::lock_guard<std::mutex> lock(mutex); // 동기화
-            for (int idx : it->second) {
-                candidates.insert(idx); // 동일 해시 버킷의 인덱스 추가
-            }
-        }
+    // 모든 스레드가 끝날 때까지 대기
+    std::unique_lock<std::mutex> lock(cvMutex);
+    cv.wait(lock, [&threadsFinished, this]() { return threadsFinished == numHashTables; });
+
+    if (candidates.empty()) {
+        _aligned_free(normalizedQuery);
+        return {};
     }
 
-public:
-    /****************************************************************
-    * Function Name: SimilarityDB
-    * Description: SimilarityDB 객체를 초기화하고 해시 테이블 및 초평면 설정
-    * Parameters:
-    *   - dimension: 벡터 차원 수
-    *   - tables: 해시 테이블 수 (기본값 5)
-    *   - bits: 해시 비트 수 (기본값 8)
-    * Return: 없음 (생성자)
-    * Date: 2025-02-21
-    ****************************************************************/
-    SimilarityDB(int dimension, int tables = 5, int bits = 8)
-        : vectorDim(dimension), numHashTables(tables), hashSize(bits),
-        threadPool(std::thread::hardware_concurrency()) {
-        if (tables <= 0 || bits <= 0 || dimension <= 0) {
-            throw std::invalid_argument("Invalid SimilarityDB parameters");
+    std::vector<std::pair<float, WeightEntry>> similarities;
+    similarities.reserve(candidates.size());
+
+    for (int id : weightsIndex) {
+        if (id < 0 || id >= static_cast<int>(weightsIndex.size())) {
+            std::cerr << "Error: Candidate ID " << id << " is invalid (out of range)\n";
+            continue;
         }
-        if (tables > static_cast<int>(hashTables.max_size())) {
-            std::cerr << "Error: numHashTables exceeds max_size: " << hashTables.max_size() << "\n";
-            throw std::length_error("Too many hash tables");
-        }
-        hashTables.resize(numHashTables); // 해시 테이블 크기 설정
-        GenerateRandomPlanes();           // 초평면 생성
+
+        float sim = CosineSimilarity(normalizedQuery, weights[id].vector, vectorDim);
+        similarities.emplace_back(sim, WeightEntry(vectorDim));
+        memcpy(similarities.back().second.vector, weights[id].vector, vectorDim * sizeof(float));
+        similarities.back().second.id = weights[id].id;
+        strncpy_s(similarities.back().second.filePath, weights[id].filePath, MAX_FILE_PATH);
     }
 
-    /****************************************************************
-    * Function Name: Add
-    * Description: 새 가중치 벡터와 파일 경로를 추가하고 인덱싱
-    * Parameters:
-    *   - vec: 추가할 가중치 벡터
-    *   - filePath: 관련 파일 경로
-    * Return: 성공 시 true, 실패 시 false
-    * Date: 2025-02-21
-    ****************************************************************/
-    bool Add(const std::vector<float>& vec, const char* filePath) {
-        if (vec.size() != vectorDim || strlen(filePath) >= 256) return false;
+    if (similarities.empty()) {
+        _aligned_free(normalizedQuery);
+        return {};
+    }
 
+    size_t actualK = std::min(static_cast<size_t>(k), similarities.size());
+    std::partial_sort(similarities.begin(),
+        similarities.begin() + actualK,
+        similarities.end(),
+        [](const auto& a, const auto& b) { return a.first > b.first; });
+
+    std::vector<std::pair<WeightEntry, float>> results;
+    results.reserve(actualK);
+    for (size_t i = 0; i < actualK; i++) {
+        results.emplace_back(std::move(similarities[i].second), similarities[i].first);
+    }
+
+    _aligned_free(normalizedQuery);
+    return results;
+}
+
+/****************************************************************
+* Function Name: Sync
+* Description: 현재 가중치와 파일 경로를 파일에 저장
+* Parameters: 없음
+* Return: 성공 시 true, 실패 시 false
+* Date: 2025-02-21
+****************************************************************/
+bool  SimilarityDB::Sync() {
+    std::ofstream indexFile(INDEX_FILE, std::ios::binary);
+    std::ofstream linkFile(LINK_FILE, std::ios::binary);
+    if (!indexFile.is_open() || !linkFile.is_open()) return false;
+
+    int count = static_cast<int>(weights.size());
+    indexFile.write(reinterpret_cast<const char*>(&count), sizeof(int));
+    linkFile.write(reinterpret_cast<const char*>(&count), sizeof(int));
+
+    for (const auto& entry : weights) {
+        int16_t vecSize = static_cast<int16_t>(entry.vecSize);
+        indexFile.write(reinterpret_cast<const char*>(&entry.id), sizeof(int));
+        indexFile.write(reinterpret_cast<const char*>(&vecSize), sizeof(int16_t));
+        indexFile.write(reinterpret_cast<const char*>(entry.vector), vecSize * sizeof(float));
+        linkFile.write(reinterpret_cast<const char*>(&entry.id), sizeof(int));
+        linkFile.write(entry.filePath, MAX_FILE_PATH);
+    }
+
+    return true;
+}
+
+/****************************************************************
+* Function Name: Load
+* Description: 파일에서 가중치와 파일 경로를 로드하여 인덱스 복원
+* Parameters: 없음
+* Return: 성공 시 true, 실패 시 false
+* Date: 2025-02-21
+****************************************************************/
+bool  SimilarityDB::Load() {
+    std::ifstream indexFile(INDEX_FILE, std::ios::binary);
+    std::ifstream linkFile(LINK_FILE, std::ios::binary);
+    if (!indexFile.is_open() || !linkFile.is_open()) return false;
+
+    weights.clear();
+    for (auto& table : hashTables) table.clear(); // 기존 해시 테이블 초기화
+
+    int count;
+    indexFile.read(reinterpret_cast<char*>(&count), sizeof(int));
+    linkFile.read(reinterpret_cast<char*>(&count), sizeof(int));
+    if (count < 0 || static_cast<size_t>(count) > weights.max_size()) {
+        std::cerr << "Error: Invalid count from file: " << count << ", max_size: " << weights.max_size() << "\n";
+        return false;
+    }
+    weights.reserve(count); // 메모리 예약
+
+    for (int i = 0; i < count; i++) {
         WeightEntry entry(vectorDim);
-        if (!entry.vector) return false;
-
-        memcpy(entry.vector, vec.data(), vectorDim * sizeof(float));
-        NormalizeVector(entry.vector, vectorDim); // 벡터 정규화
-        entry.id = weights.empty() ? 0 : weights.back().id + 1; // 새로운 ID 할당
-        strncpy_s(entry.filePath, filePath, 256);
+        int16_t vecSize;
+        indexFile.read(reinterpret_cast<char*>(&entry.id), sizeof(int));
+        indexFile.read(reinterpret_cast<char*>(&vecSize), sizeof(int16_t));
+        entry.vecSize = vecSize;
+        indexFile.read(reinterpret_cast<char*>(entry.vector), vecSize * sizeof(float));
+        linkFile.read(reinterpret_cast<char*>(&entry.id), sizeof(int));
+        linkFile.read(entry.filePath, MAX_FILE_PATH);
 
         weights.push_back(std::move(entry));
-        weightsIndex.push_back(weights.size() - 1); // weights의 인덱스를 weightsIndex에 저장
-
-        IndexVector(weightsIndex.back()); // 새로 추가된 벡터를 해시 테이블에 인덱싱
-        return true;
+        IndexVector(entry.id); // 로드된 엔트리 인덱싱
     }
 
-    /****************************************************************
-    * Function Name: Delete
-    * Description: 지정된 ID의 가중치를 삭제하고 인덱스를 업데이트
-    * Parameters:
-    *   - id: 삭제할 가중치의 ID
-    * Return: 성공 시 true, 실패 시 false
-    * Date: 2025-02-22
-    ****************************************************************/
-    bool Delete(int id) {
-        auto it = std::find(weightsIndex.begin(), weightsIndex.end(), id);
-        if (it == weightsIndex.end()) {
-            std::cerr << "Error: Weight with ID " << id << " not found\n";
-            return false;
-        }
+    return true;
+}
 
-        int removeIndex = std::distance(weightsIndex.begin(), it); // weightsIndex 내에서 삭제할 위치 찾기
-        int actualIndex = *it; // weights에서 삭제할 실제 인덱스
-
-        // 1️⃣ weights에서 해당 가중치 제거
-        weights.erase(weights.begin() + actualIndex);
-
-        // 2️⃣ weightsIndex에서 제거
-        weightsIndex.erase(it);
-
-        // 3️⃣ 삭제한 인덱스 이후의 값들을 -1씩 조정
-        for (size_t i = removeIndex; i < weightsIndex.size(); ++i) {
-            weightsIndex[i]--; // -1 감소
-        }
-
-        // 4️⃣ 해시 테이블에서도 삭제
-        for (int t = 0; t < numHashTables; t++) {
-            for (auto& bucket : hashTables[t]) {
-                auto& indices = bucket.second;
-                indices.erase(std::remove(indices.begin(), indices.end(), actualIndex), indices.end());
-            }
-        }
-
-        std::cout << "Successfully deleted weight with ID " << id << "\n";
-        return true;
-    }
-
-    /****************************************************************
-     * Function Name: FindNearest
-     * Description: 쿼리 벡터에 대해 k개의 가장 가까운 가중치를 코사인 유사도로 검색
-     *              k보다 적은 수의 이웃이 검색되면 검색된 수만큼 반환, 없으면 빈 벡터 반환
-     * Parameters:
-     *   - queryVec: 검색 쿼리 벡터
-     *   - k: 반환할 최대 이웃 수
-     * Return: 가중치와 유사도 쌍의 벡터 (검색된 수에 따라 크기 변동, 없으면 size() == 0)
-     * Author: Grok 3 by xAI
-     * Date: 2025-02-21
-     ****************************************************************/
-    std::vector<std::pair<WeightEntry, float>> FindNearest(const std::vector<float>& queryVec, int k) {
-        if (queryVec.size() != vectorDim || weights.empty() || weightsIndex.empty()) {
-            return {}; // 가중치가 없으면 빈 결과 반환
-        }
-
-        // 쿼리 벡터 정렬된 메모리 할당
-        float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
-        if (!normalizedQuery) return {};
-        memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
-        NormalizeVector(normalizedQuery, vectorDim);
-
-        std::unordered_set<int> candidates;
-        std::mutex candidatesMutex;
-
-        std::condition_variable cv;
-        std::mutex cvMutex;
-        int threadsFinished = 0;  // 완료된 스레드 개수
-
-        for (int t = 0; t < numHashTables; t++) {
-            threadPool.Enqueue([this, t, normalizedQuery, &candidates, &candidatesMutex, &cv, &cvMutex, &threadsFinished]() {
-                SearchTable(t, normalizedQuery, candidates, candidatesMutex);
-
-                // 스레드 완료 후 알림
-                std::lock_guard<std::mutex> lock(cvMutex);
-                threadsFinished++;
-                cv.notify_one();  // 대기 중인 스레드 깨우기
-                });
-        }
-
-        // 모든 스레드가 끝날 때까지 대기
-        std::unique_lock<std::mutex> lock(cvMutex);
-        cv.wait(lock, [&threadsFinished, this]() { return threadsFinished == numHashTables; });
-
-        if (candidates.empty()) {
-            _aligned_free(normalizedQuery);
-            return {};
-        }
-
-        std::vector<std::pair<float, WeightEntry>> similarities;
-        similarities.reserve(candidates.size());
-
-        for (int id : weightsIndex) {
-            if (id < 0 || id >= static_cast<int>(weightsIndex.size())) {
-                std::cerr << "Error: Candidate ID " << id << " is invalid (out of range)\n";
-                continue;
-            }
-
-            float sim = CosineSimilarity(normalizedQuery, weights[id].vector, vectorDim);
-            similarities.emplace_back(sim, WeightEntry(vectorDim));
-            memcpy(similarities.back().second.vector, weights[id].vector, vectorDim * sizeof(float));
-            similarities.back().second.id = weights[id].id;
-            strncpy_s(similarities.back().second.filePath, weights[id].filePath, 256);
-        }
-
-        if (similarities.empty()) {
-            _aligned_free(normalizedQuery);
-            return {};
-        }
-
-        size_t actualK = std::min(static_cast<size_t>(k), similarities.size());
-        std::partial_sort(similarities.begin(),
-            similarities.begin() + actualK,
-            similarities.end(),
-            [](const auto& a, const auto& b) { return a.first > b.first; });
-
-        std::vector<std::pair<WeightEntry, float>> results;
-        results.reserve(actualK);
-        for (size_t i = 0; i < actualK; i++) {
-            results.emplace_back(std::move(similarities[i].second), similarities[i].first);
-        }
-
-        _aligned_free(normalizedQuery);
-        return results;
-    }
-
-    /****************************************************************
-    * Function Name: Sync
-    * Description: 현재 가중치와 파일 경로를 파일에 저장
-    * Parameters: 없음
-    * Return: 성공 시 true, 실패 시 false
-    * Date: 2025-02-21
-    ****************************************************************/
-    bool Sync() {
-        std::ofstream indexFile(INDEX_FILE, std::ios::binary);
-        std::ofstream linkFile(LINK_FILE, std::ios::binary);
-        if (!indexFile.is_open() || !linkFile.is_open()) return false;
-
-        int count = static_cast<int>(weights.size());
-        indexFile.write(reinterpret_cast<const char*>(&count), sizeof(int));
-        linkFile.write(reinterpret_cast<const char*>(&count), sizeof(int));
-
-        for (const auto& entry : weights) {
-            int16_t vecSize = static_cast<int16_t>(entry.vecSize);
-            indexFile.write(reinterpret_cast<const char*>(&entry.id), sizeof(int));
-            indexFile.write(reinterpret_cast<const char*>(&vecSize), sizeof(int16_t));
-            indexFile.write(reinterpret_cast<const char*>(entry.vector), vecSize * sizeof(float));
-            linkFile.write(reinterpret_cast<const char*>(&entry.id), sizeof(int));
-            linkFile.write(entry.filePath, 256);
-        }
-
-        return true;
-    }
-
-    /****************************************************************
-    * Function Name: Load
-    * Description: 파일에서 가중치와 파일 경로를 로드하여 인덱스 복원
-    * Parameters: 없음
-    * Return: 성공 시 true, 실패 시 false
-    * Date: 2025-02-21
-    ****************************************************************/
-    bool Load() {
-        std::ifstream indexFile(INDEX_FILE, std::ios::binary);
-        std::ifstream linkFile(LINK_FILE, std::ios::binary);
-        if (!indexFile.is_open() || !linkFile.is_open()) return false;
-
-        weights.clear();
-        for (auto& table : hashTables) table.clear(); // 기존 해시 테이블 초기화
-
-        int count;
-        indexFile.read(reinterpret_cast<char*>(&count), sizeof(int));
-        linkFile.read(reinterpret_cast<char*>(&count), sizeof(int));
-        if (count < 0 || static_cast<size_t>(count) > weights.max_size()) {
-            std::cerr << "Error: Invalid count from file: " << count << ", max_size: " << weights.max_size() << "\n";
-            return false;
-        }
-        weights.reserve(count); // 메모리 예약
-
-        for (int i = 0; i < count; i++) {
-            WeightEntry entry(vectorDim);
-            int16_t vecSize;
-            indexFile.read(reinterpret_cast<char*>(&entry.id), sizeof(int));
-            indexFile.read(reinterpret_cast<char*>(&vecSize), sizeof(int16_t));
-            entry.vecSize = vecSize;
-            indexFile.read(reinterpret_cast<char*>(entry.vector), vecSize * sizeof(float));
-            linkFile.read(reinterpret_cast<char*>(&entry.id), sizeof(int));
-            linkFile.read(entry.filePath, 256);
-
-            weights.push_back(std::move(entry));
-            IndexVector(entry.id); // 로드된 엔트리 인덱싱
-        }
-
-        return true;
-    }
-
-    /****************************************************************
-    * Function Name: GetCount
-    * Description: 저장된 가중치 수 반환
-    * Parameters: 없음
-    * Return: 가중치 수 (size_t)
-    * Date: 2025-02-21
-    ****************************************************************/
-    size_t GetCount() const { return weights.size(); }
-};
+/****************************************************************
+* Function Name: GetCount
+* Description: 저장된 가중치 수 반환
+* Parameters: 없음
+* Return: 가중치 수 (size_t)
+* Date: 2025-02-21
+****************************************************************/
+size_t  SimilarityDB::GetCount() const { return weights.size(); }
 
 /*
 * 
