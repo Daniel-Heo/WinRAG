@@ -1,4 +1,5 @@
 ﻿#pragma once
+#define NOMINMAX  // min, max 매크로 충돌 방지 (Windows 환경)
 #include <windows.h>
 #include <vector>
 #include <unordered_map>

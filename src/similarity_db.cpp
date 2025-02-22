@@ -377,6 +377,7 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
 class SimilarityDB {
 private:
     std::vector<WeightEntry> weights;           // 저장된 가중치 엔트리
+	std::vector<int> weightsIndex;              // 가중치 인덱스 : weights의 인덱스를 저장
     int vectorDim;                              // 벡터 차원 수
     int numHashTables;                          // 해시 테이블 수
     int hashSize;                               // 각 해시 함수의 비트 수
@@ -521,7 +522,7 @@ public:
     }
 
     /****************************************************************
-    * Function Name: AddWeight
+    * Function Name: Add
     * Description: 새 가중치 벡터와 파일 경로를 추가하고 인덱싱
     * Parameters:
     *   - vec: 추가할 가중치 벡터
@@ -529,32 +530,82 @@ public:
     * Return: 성공 시 true, 실패 시 false
     * Date: 2025-02-21
     ****************************************************************/
-    bool AddWeight(const std::vector<float>& vec, const char* filePath) {
+    bool Add(const std::vector<float>& vec, const char* filePath) {
         if (vec.size() != vectorDim || strlen(filePath) >= 256) return false;
 
         WeightEntry entry(vectorDim);
         if (!entry.vector) return false;
+
         memcpy(entry.vector, vec.data(), vectorDim * sizeof(float));
-        NormalizeVector(entry.vector, vectorDim); // 벡터 노멀라이즈
-        entry.id = weights.size();
+        NormalizeVector(entry.vector, vectorDim); // 벡터 정규화
+        entry.id = weights.empty() ? 0 : weights.back().id + 1; // 새로운 ID 할당
         strncpy_s(entry.filePath, filePath, 256);
-        weights.push_back(std::move(entry)); // 엔트리 추가
-        IndexVector(entry.id);               // 해시 테이블에 인덱싱
+
+        weights.push_back(std::move(entry));
+        weightsIndex.push_back(weights.size() - 1); // weights의 인덱스를 weightsIndex에 저장
+
+        IndexVector(weightsIndex.back()); // 새로 추가된 벡터를 해시 테이블에 인덱싱
         return true;
     }
 
     /****************************************************************
-    * Function Name: FindNearest
-    * Description: 쿼리 벡터에 대해 k개의 가장 가까운 가중치를 코사인 유사도로 검색
+    * Function Name: Delete
+    * Description: 지정된 ID의 가중치를 삭제하고 인덱스를 업데이트
     * Parameters:
-    *   - queryVec: 검색 쿼리 벡터
-    *   - k: 반환할 이웃 수
-    * Return: 가중치와 유사도 쌍의 벡터
-    * Date: 2025-02-21
+    *   - id: 삭제할 가중치의 ID
+    * Return: 성공 시 true, 실패 시 false
+    * Date: 2025-02-22
     ****************************************************************/
-    std::vector<std::pair<WeightEntry, float>> FindNearest(const std::vector<float>& queryVec, int k) {
-        if (queryVec.size() != vectorDim || weights.empty()) return {};
+    bool Delete(int id) {
+        auto it = std::find(weightsIndex.begin(), weightsIndex.end(), id);
+        if (it == weightsIndex.end()) {
+            std::cerr << "Error: Weight with ID " << id << " not found\n";
+            return false;
+        }
 
+        int removeIndex = std::distance(weightsIndex.begin(), it); // weightsIndex 내에서 삭제할 위치 찾기
+        int actualIndex = *it; // weights에서 삭제할 실제 인덱스
+
+        // 1️⃣ weights에서 해당 가중치 제거
+        weights.erase(weights.begin() + actualIndex);
+
+        // 2️⃣ weightsIndex에서 제거
+        weightsIndex.erase(it);
+
+        // 3️⃣ 삭제한 인덱스 이후의 값들을 -1씩 조정
+        for (size_t i = removeIndex; i < weightsIndex.size(); ++i) {
+            weightsIndex[i]--; // -1 감소
+        }
+
+        // 4️⃣ 해시 테이블에서도 삭제
+        for (int t = 0; t < numHashTables; t++) {
+            for (auto& bucket : hashTables[t]) {
+                auto& indices = bucket.second;
+                indices.erase(std::remove(indices.begin(), indices.end(), actualIndex), indices.end());
+            }
+        }
+
+        std::cout << "Successfully deleted weight with ID " << id << "\n";
+        return true;
+    }
+
+    /****************************************************************
+     * Function Name: FindNearest
+     * Description: 쿼리 벡터에 대해 k개의 가장 가까운 가중치를 코사인 유사도로 검색
+     *              k보다 적은 수의 이웃이 검색되면 검색된 수만큼 반환, 없으면 빈 벡터 반환
+     * Parameters:
+     *   - queryVec: 검색 쿼리 벡터
+     *   - k: 반환할 최대 이웃 수
+     * Return: 가중치와 유사도 쌍의 벡터 (검색된 수에 따라 크기 변동, 없으면 size() == 0)
+     * Author: Grok 3 by xAI
+     * Date: 2025-02-21
+     ****************************************************************/
+    std::vector<std::pair<WeightEntry, float>> FindNearest(const std::vector<float>& queryVec, int k) {
+        if (queryVec.size() != vectorDim || weights.empty() || weightsIndex.empty()) {
+            return {}; // 가중치가 없으면 빈 결과 반환
+        }
+
+        // 쿼리 벡터 정렬된 메모리 할당
         float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
         if (!normalizedQuery) return {};
         memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
@@ -562,65 +613,65 @@ public:
 
         std::unordered_set<int> candidates;
         std::mutex candidatesMutex;
-        size_t reserveSize = weights.size() / numHashTables;
-        if (reserveSize > candidates.max_size()) {
-            std::cerr << "Error: candidates reserve size exceeds max_size: " << candidates.max_size() << "\n";
-            reserveSize = candidates.max_size() / 2;
-        }
-        candidates.reserve(reserveSize); // 후보 집합 메모리 예약
 
-        // 모든 해시 테이블에 대해 병렬 검색 작업 추가
+        std::condition_variable cv;
+        std::mutex cvMutex;
+        int threadsFinished = 0;  // 완료된 스레드 개수
+
         for (int t = 0; t < numHashTables; t++) {
-            threadPool.Enqueue([this, t, normalizedQuery, &candidates, &candidatesMutex]() {
+            threadPool.Enqueue([this, t, normalizedQuery, &candidates, &candidatesMutex, &cv, &cvMutex, &threadsFinished]() {
                 SearchTable(t, normalizedQuery, candidates, candidatesMutex);
+
+                // 스레드 완료 후 알림
+                std::lock_guard<std::mutex> lock(cvMutex);
+                threadsFinished++;
+                cv.notify_one();  // 대기 중인 스레드 깨우기
                 });
         }
 
-        // 작업 완료까지 대기
-        while (true) {
-            std::unique_lock<std::mutex> lock(candidatesMutex);
-            if (candidates.size() >= weights.size() / numHashTables || threadPool.IsEmpty()) break;
-            lock.unlock();
-            std::this_thread::yield(); // CPU 양보
-        }
+        // 모든 스레드가 끝날 때까지 대기
+        std::unique_lock<std::mutex> lock(cvMutex);
+        cv.wait(lock, [&threadsFinished, this]() { return threadsFinished == numHashTables; });
 
-        std::vector<std::pair<float, WeightEntry>> similarities;
-        if (candidates.size() > similarities.max_size()) {
-            std::cerr << "Error: similarities reserve size exceeds max_size: " << similarities.max_size() << "\n";
+        if (candidates.empty()) {
             _aligned_free(normalizedQuery);
             return {};
         }
+
+        std::vector<std::pair<float, WeightEntry>> similarities;
         similarities.reserve(candidates.size());
-        for (int idx : candidates) {
-            if (idx < 0 || static_cast<size_t>(idx) >= weights.size()) {
-                std::cerr << "Error: Invalid candidate idx: " << idx << "\n";
+
+        for (int id : weightsIndex) {
+            if (id < 0 || id >= static_cast<int>(weightsIndex.size())) {
+                std::cerr << "Error: Candidate ID " << id << " is invalid (out of range)\n";
                 continue;
             }
-            float sim = CosineSimilarity(normalizedQuery, weights[idx].vector, vectorDim);
+
+            float sim = CosineSimilarity(normalizedQuery, weights[id].vector, vectorDim);
             similarities.emplace_back(sim, WeightEntry(vectorDim));
-            memcpy(similarities.back().second.vector, weights[idx].vector, vectorDim * sizeof(float));
-            similarities.back().second.id = weights[idx].id;
-            strncpy_s(similarities.back().second.filePath, weights[idx].filePath, 256);
+            memcpy(similarities.back().second.vector, weights[id].vector, vectorDim * sizeof(float));
+            similarities.back().second.id = weights[id].id;
+            strncpy_s(similarities.back().second.filePath, weights[id].filePath, 256);
         }
 
-        // 상위 k개 정렬
+        if (similarities.empty()) {
+            _aligned_free(normalizedQuery);
+            return {};
+        }
+
+        size_t actualK = std::min(static_cast<size_t>(k), similarities.size());
         std::partial_sort(similarities.begin(),
-            similarities.begin() + min(k, static_cast<int>(similarities.size())),
+            similarities.begin() + actualK,
             similarities.end(),
             [](const auto& a, const auto& b) { return a.first > b.first; });
 
         std::vector<std::pair<WeightEntry, float>> results;
-        k = min(k, static_cast<int>(similarities.size()));
-        if (k > results.max_size()) {
-            std::cerr << "Error: results reserve size exceeds max_size: " << results.max_size() << "\n";
-            k = static_cast<int>(results.max_size() / 2);
-        }
-        results.reserve(k);
-        for (int i = 0; i < k; i++) {
+        results.reserve(actualK);
+        for (size_t i = 0; i < actualK; i++) {
             results.emplace_back(std::move(similarities[i].second), similarities[i].first);
         }
 
-        _aligned_free(normalizedQuery); // 메모리 해제
+        _aligned_free(normalizedQuery);
         return results;
     }
 
@@ -703,13 +754,6 @@ public:
     size_t GetCount() const { return weights.size(); }
 };
 
-/****************************************************************
-* Function Name: main
-* Description: SimilarityDB 클래스의 사용 예제 실행
-* Parameters: 없음
-* Return: 프로그램 종료 코드 (int)
-* Date: 2025-02-21
-****************************************************************/
 /*
 * 
 해시 테이블의 개수와 비트 수의 의미:
@@ -766,15 +810,28 @@ int test_similarity_db() {
     try {
         SimilarityDB sdb(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
 
-        if (sdb.Load()) std::cout << "Loaded existing db\n"; // 기존 인덱스 로드 시도
+        //if (sdb.Load()) std::cout << "Loaded existing db\n"; // 기존 인덱스 로드 시도
 
         // 테스트 데이터 추가
-        sdb.AddWeight({ 1.0f, 2.0f, 3.0f }, "C:\\data\\file1.txt");
-        sdb.AddWeight({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
-        sdb.AddWeight({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
+        sdb.Add({ 0.1f, 2.0f, 0.1f }, "C:\\data\\file1.txt");
+        sdb.Add({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
+        sdb.Add({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
+
+        // 삭제 테스트
+        sdb.Delete(1); // ID 1인 가중치 삭제
+		printf("After delete: %d\n", sdb.GetCount());
 
         std::vector<float> query = { 1.2f, 2.2f, 3.2f };
-        auto results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
+        // 시간 계산
+		auto start = std::chrono::high_resolution_clock::now();
+        std::vector<std::pair<WeightEntry, float>> results;
+		for ( int i = 0; i < 100000; i++) {
+			 results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
+		}
+        //auto results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = end - start;
+		std::cout << "Elapsed time: " << elapsed.count() << "s\n";
 
         std::cout << "Found " << results.size() << " nearest weights:\n";
         for (const auto& result : results) {
