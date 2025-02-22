@@ -23,7 +23,7 @@ AI 모델의 가중치 전체를 메모리에 1차원으로 정렬해서 올려�
 - 저장 : 파일로 저장을합니다. sdb.index(index_no와 가중치 데이터), sdb.data ( index_no와 파일 path )
 - 불러오기 : sdb.index, sdb.data파일에서 데이터를 불러옵니다.
 - 삭제 : 미구현 ( 추후 구현 예정 )
-- 함수 제공 :
+- 기본 벡터 연산 함수 제공 :
 ```cpp
 void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
 std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
