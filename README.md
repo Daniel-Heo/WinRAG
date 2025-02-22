@@ -16,7 +16,7 @@ AI 모델의 가중치 전체를 메모리에 1차원으로 정렬해서 올려�
 - 불러오기 : sdb.index, sdb.data파일에서 데이터를 불러옵니다.
 - 삭제 : 미구현 ( 추후 구현 예정 )
 - 함수 제공 :
-  
+```cpp
 void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
 std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
 float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
