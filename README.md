@@ -20,6 +20,7 @@ AI 모델의 가중치 전체를 메모리에 1차원으로 정렬해서 올려�
 void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
 std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
 float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
+```
 
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
