@@ -404,18 +404,18 @@ bool  SimilarityDB::Delete(int id) {
     int removeIndex = static_cast<int>(std::distance(weightsIndex.begin(), it)); // weightsIndex 내에서 삭제할 위치 찾기
     int actualIndex = *it; // weights에서 삭제할 실제 인덱스
 
-    // 1️⃣ weights에서 해당 가중치 제거
+    // 1️ weights에서 해당 가중치 제거
     weights.erase(weights.begin() + actualIndex);
 
-    // 2️⃣ weightsIndex에서 제거
+    // 2️ weightsIndex에서 제거
     weightsIndex.erase(it);
 
-    // 3️⃣ 삭제한 인덱스 이후의 값들을 -1씩 조정
+    // 3️ 삭제한 인덱스 이후의 값들을 -1씩 조정
     for (size_t i = removeIndex; i < weightsIndex.size(); ++i) {
         weightsIndex[i]--; // -1 감소
     }
 
-    // 4️⃣ 해시 테이블에서도 삭제
+    // 4️ 해시 테이블에서도 삭제
     for (int t = 0; t < numHashTables; t++) {
         for (auto& bucket : hashTables[t]) {
             auto& indices = bucket.second;
