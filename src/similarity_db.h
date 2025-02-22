@@ -24,8 +24,8 @@
 #include <emmintrin.h> // SSE2
 #endif
 
-#define INDEX_FILENAME "vector_db.index"
-#define LINK_FILENAME "vector_db.data"
+#define INDEX_FILENAME "sdb.index"
+#define LINK_FILENAME "sdb.data"
 
 int test_similarity_db();
 int test_mean();
