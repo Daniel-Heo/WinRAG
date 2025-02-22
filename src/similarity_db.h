@@ -17,7 +17,11 @@
 #include <memory>      // aligned_alloc
 #include <functional>
 
+#ifdef __AVX2__
 #define SIMD_TYPE 1 // 0: SSE2 사용,  1: AVX2+FMA3 사용
+#else
+#define SIMD_TYPE 0 
+#endif
 
 #if SIMD_TYPE == 1
 #include <immintrin.h>  // AVX, AVX2, FMA3, SSE 관련 헤더
