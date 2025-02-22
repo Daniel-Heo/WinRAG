@@ -1,11 +1,27 @@
+ï»¿/*******************************************************************************
+    íŒŒ   ì¼   ëª… : thread_pool.cpp
+	í”„ë¡œê·¸ë¨ëª…ì¹­ :  ì“°ë ˆë“œ í’€ í´ë˜ìŠ¤
+    ì‘   ì„±   ì¼ : 2025.2.22
+    ì‘   ì„±   ì : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+	í”„ë¡œê·¸ë¨ìš©ë„ : ì“°ë ˆë“œ í’€ì„ êµ¬í˜„í•˜ì—¬ ì—¬ëŸ¬ ìŠ¤ë ˆë“œì—ì„œ ì‘ì—…ì„ ì²˜ë¦¬í•  ìˆ˜ ìˆë„ë¡ í•¨
+    ì°¸ ê³  ì‚¬ í•­  :
+    ë¼ ì´ ì„¼ ìŠ¤  : MIT License
+
+    ----------------------------------------------------------------------------
+    ìˆ˜ì •ì¼ì    ìˆ˜ì •ì      ìˆ˜ì •ë‚´ìš©
+    =========== =========== ====================================================
+    2025.2.22   Daniel Heo  ìµœì´ˆ ìƒì„±
+    ----------------------------------------------------------------------------
+
+*******************************************************************************/
 #include "thread_pool.h"
 
 /****************************************************************
-* Function Name: ThreadPool (»ı¼ºÀÚ)
-* Description: ÁöÁ¤µÈ ½º·¹µå ¼ö·Î ½º·¹µå Ç®À» ÃÊ±âÈ­ÇÏ°í ÀÛ¾÷ ´ë±â ½ÃÀÛ
+* Function Name: ThreadPool (ìƒì„±ì)
+* Description: ì§€ì •ëœ ìŠ¤ë ˆë“œ ìˆ˜ë¡œ ìŠ¤ë ˆë“œ í’€ì„ ì´ˆê¸°í™”í•˜ê³  ì‘ì—… ëŒ€ê¸° ì‹œì‘
 * Parameters:
-*   - numThreads: »ı¼ºÇÒ ½º·¹µå ¼ö
-* Return: ¾øÀ½
+*   - numThreads: ìƒì„±í•  ìŠ¤ë ˆë“œ ìˆ˜
+* Return: ì—†ìŒ
 * Date: 2025-02-21
 ****************************************************************/
 ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
@@ -16,54 +32,54 @@ ThreadPool::ThreadPool(size_t numThreads) : stop(false) {
                 {
                     std::unique_lock<std::mutex> lock(queueMutex);
                     condition.wait(lock, [this] { return stop || !tasks.empty(); });
-                    if (stop && tasks.empty()) return; // Á¾·á Á¶°Ç
-                    task = std::move(tasks.front());   // ÀÛ¾÷ °¡Á®¿À±â
+                    if (stop && tasks.empty()) return; // ì¢…ë£Œ ì¡°ê±´
+                    task = std::move(tasks.front());   // ì‘ì—… ê°€ì ¸ì˜¤ê¸°
                     tasks.pop();
                 }
-                task(); // ÀÛ¾÷ ½ÇÇà
+                task(); // ì‘ì—… ì‹¤í–‰
             }
             });
     }
 }
 
 /****************************************************************
-* Function Name: ~ThreadPool (¼Ò¸êÀÚ)
-* Description: ½º·¹µå Ç®À» Á¾·áÇÏ°í ¸ğµç ½º·¹µå°¡ ¿Ï·áµÉ ¶§±îÁö ´ë±â
-* Parameters: ¾øÀ½
-* Return: ¾øÀ½
+* Function Name: ~ThreadPool (ì†Œë©¸ì)
+* Description: ìŠ¤ë ˆë“œ í’€ì„ ì¢…ë£Œí•˜ê³  ëª¨ë“  ìŠ¤ë ˆë“œê°€ ì™„ë£Œë  ë•Œê¹Œì§€ ëŒ€ê¸°
+* Parameters: ì—†ìŒ
+* Return: ì—†ìŒ
 * Date: 2025-02-21
 ****************************************************************/
 ThreadPool::~ThreadPool() {
     {
         std::unique_lock<std::mutex> lock(queueMutex);
-        stop = true; // Á¾·á ½ÅÈ£ ¼³Á¤
+        stop = true; // ì¢…ë£Œ ì‹ í˜¸ ì„¤ì •
     }
-    condition.notify_all(); // ¸ğµç ½º·¹µå ±ú¿ì±â
-    for (auto& worker : workers) worker.join(); // ½º·¹µå Á¾·á ´ë±â
+    condition.notify_all(); // ëª¨ë“  ìŠ¤ë ˆë“œ ê¹¨ìš°ê¸°
+    for (auto& worker : workers) worker.join(); // ìŠ¤ë ˆë“œ ì¢…ë£Œ ëŒ€ê¸°
 }
 
 /****************************************************************
 * Function Name: Enqueue
-* Description: ÀÛ¾÷ Å¥¿¡ »õ ÀÛ¾÷À» Ãß°¡ÇÏ°í ½º·¹µå¸¦ ±ú¿ò
+* Description: ì‘ì—… íì— ìƒˆ ì‘ì—…ì„ ì¶”ê°€í•˜ê³  ìŠ¤ë ˆë“œë¥¼ ê¹¨ì›€
 * Parameters:
-*   - task: ½ÇÇàÇÒ ÇÔ¼ö °´Ã¼
-* Return: ¾øÀ½
+*   - task: ì‹¤í–‰í•  í•¨ìˆ˜ ê°ì²´
+* Return: ì—†ìŒ
 * Date: 2025-02-21
 ****************************************************************/
 void ThreadPool::Enqueue(std::function<void()> task) {
     {
         std::unique_lock<std::mutex> lock(queueMutex);
-        if (stop) return; // Á¾·á »óÅÂ¸é Ãß°¡ÇÏÁö ¾ÊÀ½
+        if (stop) return; // ì¢…ë£Œ ìƒíƒœë©´ ì¶”ê°€í•˜ì§€ ì•ŠìŒ
         tasks.emplace(std::move(task));
     }
-    condition.notify_one(); // ´ë±â ÁßÀÎ ½º·¹µå ÇÏ³ª ±ú¿ì±â
+    condition.notify_one(); // ëŒ€ê¸° ì¤‘ì¸ ìŠ¤ë ˆë“œ í•˜ë‚˜ ê¹¨ìš°ê¸°
 }
 
 /****************************************************************
 * Function Name: GetTaskCount
-* Description: ÇöÀç ÀÛ¾÷ Å¥¿¡ ³²¾Æ ÀÖ´Â ÀÛ¾÷ ¼ö ¹İÈ¯
-* Parameters: ¾øÀ½
-* Return: ÀÛ¾÷ ¼ö (size_t)
+* Description: í˜„ì¬ ì‘ì—… íì— ë‚¨ì•„ ìˆëŠ” ì‘ì—… ìˆ˜ ë°˜í™˜
+* Parameters: ì—†ìŒ
+* Return: ì‘ì—… ìˆ˜ (size_t)
 * Date: 2025-02-21
 ****************************************************************/
 size_t ThreadPool::GetTaskCount() const {
@@ -73,9 +89,9 @@ size_t ThreadPool::GetTaskCount() const {
 
 /****************************************************************
 * Function Name: IsEmpty
-* Description: ÀÛ¾÷ Å¥°¡ ºñ¾î ÀÖ´ÂÁö È®ÀÎ
-* Parameters: ¾øÀ½
-* Return: ºñ¾î ÀÖÀ¸¸é true, ¾Æ´Ï¸é false
+* Description: ì‘ì—… íê°€ ë¹„ì–´ ìˆëŠ”ì§€ í™•ì¸
+* Parameters: ì—†ìŒ
+* Return: ë¹„ì–´ ìˆìœ¼ë©´ true, ì•„ë‹ˆë©´ false
 * Date: 2025-02-21
 ****************************************************************/
 bool ThreadPool::IsEmpty() const {

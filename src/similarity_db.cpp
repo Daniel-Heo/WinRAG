@@ -1,7 +1,20 @@
-﻿// similarity_db.cpp ( 유사도 DB )
-// --------------------------------------------------------------------------------------------------
-// Random Projection 기반 LSH(Locality Sensitive Hashing)를 사용하여 코사인 유사도에 적합한 인덱싱을 구현
-// 검색 시 동일한 버킷 내에서만 코사인 유사도를 계산하여 효율성을 높인다.
+﻿/*******************************************************************************
+    파   일   명 : similarity_db.cpp
+    프로그램명칭 :  유사도 DB
+    작   성   일 : 2025.2.22
+    작   성   자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    프로그램용도 : Random Projection 기반 LSH(Locality Sensitive Hashing)를 사용하여 코사인 유사도에 적합한 인덱싱을 구현
+                           검색 시 동일한 버킷 내에서만 코사인 유사도를 계산하여 효율성을 높인다.
+    참 고 사 항  :
+    라 이 센 스  : MIT License
+
+    ----------------------------------------------------------------------------
+    수정일자    수정자      수정내용
+    =========== =========== ====================================================
+    2025.2.22   Daniel Heo  최초 생성
+    ----------------------------------------------------------------------------
+
+*******************************************************************************/
 // 
 // LSH 구현 세부사항 :
 // 
@@ -45,6 +58,7 @@
 //     성능 개선 효과 :
 // 메모리 정렬 : SIMD 연산이 더 효율적으로 실행되며, 캐시 라인 활용도가 높아짐.
 // 스레드 풀 : 스레드 생성 / 소멸 오버헤드가 없어지고, 작업 분배가 안정적.
+
 #include "similarity_db.h"
 
 /****************************************************************
@@ -366,7 +380,7 @@ bool  SimilarityDB::Add(const std::vector<float>& vec, const char* filePath) {
     strncpy_s(entry.filePath, filePath, MAX_FILE_PATH);
 
     weights.push_back(std::move(entry));
-    weightsIndex.push_back(weights.size() - 1); // weights의 인덱스를 weightsIndex에 저장
+    weightsIndex.push_back(static_cast<int>(weights.size() - 1)); // weights의 인덱스를 weightsIndex에 저장
 
     IndexVector(weightsIndex.back()); // 새로 추가된 벡터를 해시 테이블에 인덱싱
     return true;
@@ -387,7 +401,7 @@ bool  SimilarityDB::Delete(int id) {
         return false;
     }
 
-    int removeIndex = std::distance(weightsIndex.begin(), it); // weightsIndex 내에서 삭제할 위치 찾기
+    int removeIndex = static_cast<int>(std::distance(weightsIndex.begin(), it)); // weightsIndex 내에서 삭제할 위치 찾기
     int actualIndex = *it; // weights에서 삭제할 실제 인덱스
 
     // 1️⃣ weights에서 해당 가중치 제거
@@ -642,7 +656,6 @@ int test_similarity_db() {
 
         // 삭제 테스트
         sdb.Delete(1); // ID 1인 가중치 삭제
-		printf("After delete: %d\n", sdb.GetCount());
 
         std::vector<float> query = { 1.2f, 2.2f, 3.2f };
         // 시간 계산

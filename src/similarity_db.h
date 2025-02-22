@@ -1,4 +1,21 @@
-﻿#pragma once
+﻿/*******************************************************************************
+    파   일   명 : similarity_db.h
+    프로그램명칭 : 유사도 DB
+    작   성   일 : 2025.2.22
+    작   성   자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    프로그램용도 : Random Projection 기반 LSH(Locality Sensitive Hashing)를 사용하여 코사인 유사도에 적합한 인덱싱을 구현
+                           검색 시 동일한 버킷 내에서만 코사인 유사도를 계산하여 효율성을 높인다.
+    참 고 사 항  : 
+	라 이 센 스  : MIT License
+
+    ----------------------------------------------------------------------------
+    수정일자    수정자      수정내용
+    =========== =========== ====================================================
+	2025.2.22   Daniel Heo  최초 생성
+    ----------------------------------------------------------------------------
+
+*******************************************************************************/
+#pragma once
 #define NOMINMAX  // min, max 매크로 충돌 방지 (Windows 환경)
 #include <windows.h>
 #include <vector>
@@ -123,8 +140,7 @@ private:
     void SearchTable(int tableIdx, const float* query, std::unordered_set<int>& candidates, std::mutex& mutex);
 
 public:
-    // explicit SimilarityDB(int dimension, int tables = 5, int bits = 8); // 생성자
-    SimilarityDB(int dimension, int tables = 5, int bits = 8);
+    explicit SimilarityDB(int dimension, int tables = 5, int bits = 8); // 생성자
     bool Add(const std::vector<float>& vec, const char* filePath); // 가중치 벡터 추가
     bool Delete(int id);                   // 가중치 삭제
     std::vector<std::pair<WeightEntry, float>> FindNearest(const std::vector<float>& queryVec, int k); // k-NN 검색

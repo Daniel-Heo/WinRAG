@@ -1,4 +1,23 @@
-﻿#pragma once
+﻿/*******************************************************************************
+    파   일   명 : sentencepiece.h
+    프로그램명칭 :  Sentence Piece Tokenizer
+    작   성   일 : 2025.2.22
+    작   성   자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    프로그램용도 : SentencePiece를 사용하여 토크나이징을 수행
+                           Trie 구조를 사용하여 최적화된 토크나이저 구현
+                           메모리 풀을 사용하여 속도 향상
+    참 고 사 항  : before ->  Jet makers feud over seat width with big orders at stake
+                        After -> _J et _makers _fe ud _over _seat _width _with _big _orders _at _stake
+    라 이 센 스  : MIT License
+
+    ----------------------------------------------------------------------------
+    수정일자    수정자      수정내용
+    =========== =========== ====================================================
+    2025.2.22   Daniel Heo  최초 생성
+    ----------------------------------------------------------------------------
+
+*******************************************************************************/
+#pragma once
 #include <iostream>
 #include <fstream>
 #include <unordered_map>
