@@ -18,6 +18,8 @@
 #include "weights.h"
 #include "math.h"
 #include "similarity_db.h"
+#include "bm25.h"
+#include "data_loader.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
@@ -60,8 +62,10 @@ int main() {
 	//test_weights();
 	//test_math();
 	//test_mapping();
-	test_similarity_db();
+	//test_similarity_db();
 	//test_mean();
+    //test_bm25();
+	test_data_loader();
     
     return 0;
 }
