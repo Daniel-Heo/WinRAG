@@ -1,17 +1,17 @@
 ﻿/*******************************************************************************
-    파   일   명 : similarity_db.h
-    프로그램명칭 : 유사도 DB
+    파   일   명 : spherical_grid.h
+    프로그램명칭 :  유사도 DB
     작   성   일 : 2025.2.22
     작   성   자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
-    프로그램용도 : Random Projection 기반 LSH(Locality Sensitive Hashing)를 사용하여 코사인 유사도에 적합한 인덱싱을 구현
-                           검색 시 동일한 버킷 내에서만 코사인 유사도를 계산하여 효율성을 높인다.
-    참 고 사 항  : 
-	라 이 센 스  : MIT License
+    프로그램용도 : spherical grid를 사용하여 코사인 유사도에 적합한 인덱싱을 구현하여 효율성을 높인다.
+
+    참 고 사 항  :
+    라 이 센 스  : MIT License
 
     ----------------------------------------------------------------------------
     수정일자    수정자      수정내용
     =========== =========== ====================================================
-	2025.2.22   Daniel Heo  최초 생성
+    2025.2.22   Daniel Heo  최초 생성
     ----------------------------------------------------------------------------
 
 *******************************************************************************/
@@ -47,15 +47,16 @@
 #include <emmintrin.h> // SSE2
 #endif
 
-#define INDEX_FILENAME  "sdb.index"
-#define LINK_FILENAME   "sdb.data"
+//#define INDEX_FILENAME  "sdb.index"
+#define DATA_FILENAME   "sdb.data"
 #define MAX_FILE_PATH   256
+#define SECTOR_COUNT_PER_PAIR 12 // 각 (x, y) 쌍의 각도를 12개 구역으로 분할
 
 void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
 std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
 float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
 
-int test_similarity_db();
+int test_spherical_grid();
 int test_mean();
 
 /****************************************************************
@@ -86,15 +87,10 @@ struct WeightEntry {
 
     // 이동 생성자: 리소스를 안전하게 이동하며 원본을 초기화
     WeightEntry(WeightEntry&& other) noexcept : vector(other.vector), vecSize(other.vecSize), id(other.id) {
-        if (other.filePath[0] != '\0') {
-            memcpy(filePath, other.filePath, sizeof(filePath)); // 파일 경로 복사
-        }
-        else {
-            memset(filePath, 0, sizeof(filePath)); // 빈 경로로 초기화
-        }
-        other.vector = nullptr; // 원본 포인터를 무효화
+        memcpy(filePath, other.filePath, sizeof(filePath));
+        other.vector = nullptr;
         other.vecSize = 0;
-        memset(other.filePath, 0, sizeof(filePath)); // 원본 경로 초기화
+        memset(other.filePath, 0, sizeof(filePath));
     }
 
     // 이동 대입 연산자: 기존 리소스를 해제하고 새 리소스를 이동
@@ -121,32 +117,24 @@ struct WeightEntry {
 /**
  * LSH 기반 k-NN 검색을 지원하는 유사도 데이터베이스
  */
-class SimilarityDB {
+class SphericalGrid {
 private:
-    std::vector<WeightEntry> weights;        // 저장된 가중치 리스트
-    std::vector<int> weightsIndex;           // 가중치 인덱스 리스트
-    int vectorDim;                           // 벡터 차원 수
-    int numHashTables;                       // 해시 테이블 개수
-    int hashSize;                            // 해시 비트 수
-    std::vector<std::vector<float>> randomPlanes; // 랜덤 초평면
-    std::vector<std::unordered_map<uint32_t, std::vector<int>>> hashTables; // LSH 해시 테이블
-    ThreadPool threadPool;                   // 병렬 검색을 위한 스레드 풀
-    const std::string INDEX_FILE;            // 인덱스 파일 경로
-    const std::string LINK_FILE;             // 링크 파일 경로
+    int vectorDim;
+    int numSectors;
+    std::unordered_map<int, std::vector<WeightEntry>> sectorBuckets;
+    int nextID = 0;  // 항상 증가하는 ID (삭제 후에도 재사용하지 않음)
 
-    void GenerateRandomPlanes();             // 랜덤 초평면 생성
-    uint32_t GetHash(const float* vec, int tableIdx); // 벡터의 LSH 해시값 계산
-    void IndexVector(int idx);               // 가중치 벡터를 해시 테이블에 추가
-    void SearchTable(int tableIdx, const float* query, std::unordered_set<int>& candidates, std::mutex& mutex);
+    int GetSectorIndex(const float* vec) const;
 
 public:
-    explicit SimilarityDB(int dimension, int tables = 5, int bits = 8); // 생성자
-    bool Add(const std::vector<float>& vec, const char* filePath); // 가중치 벡터 추가
-    bool Delete(int id);                   // 가중치 삭제
-    std::vector<std::pair<WeightEntry, float>> FindNearest(const std::vector<float>& queryVec, int k); 
-    std::vector<std::pair<WeightEntry, float>> FindNearestFull(
+    explicit SphericalGrid(int dimension);
+    bool Add(const std::vector<float>& vec, const char* filePath);
+    //std::vector<std::pair<WeightEntry, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
+    std::vector<std::pair<const WeightEntry*, float>> FindNearest(
         const std::vector<float>& queryVec, int k);
-    bool Sync();                            // 가중치 데이터 파일 저장
-    bool Load();                            // 가중치 데이터 파일 불러오기
-    size_t GetCount() const;                // 저장된 가중치 수 반환
+    std::vector<std::pair<const WeightEntry*, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
+    bool Delete(int id);
+    bool Save();
+    bool Load();
+    size_t GetCount();
 };

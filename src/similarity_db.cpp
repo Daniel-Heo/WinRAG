@@ -59,7 +59,7 @@
 // 메모리 정렬 : SIMD 연산이 더 효율적으로 실행되며, 캐시 라인 활용도가 높아짐.
 // 스레드 풀 : 스레드 생성 / 소멸 오버헤드가 없어지고, 작업 분배가 안정적.
 
-#include "similarity_db.h"
+#include "similarity_db_normal.h"
 
 /****************************************************************
 * Function Name: NormalizeVector
@@ -237,7 +237,8 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
 ****************************************************************/
 SimilarityDB::SimilarityDB(int dimension, int tables, int bits)
     : vectorDim(dimension), numHashTables(tables), hashSize(bits),
-    threadPool(std::thread::hardware_concurrency()) {
+    //threadPool(std::thread::hardware_concurrency()) {
+	threadPool(tables) { // 스레드 숫자를 hash table 수로 설정 ( 최적화)
     if (tables <= 0 || bits <= 0 || dimension <= 0) {
         throw std::invalid_argument("Invalid SimilarityDB parameters");
     }
@@ -471,6 +472,13 @@ std::vector<std::pair<WeightEntry, float>>  SimilarityDB::FindNearest(const std:
     std::unique_lock<std::mutex> lock(cvMutex);
     cv.wait(lock, [&threadsFinished, this]() { return threadsFinished == numHashTables; });
 
+    // 🔥 후보 개수가 너무 많으면 중단
+    //if (candidates.size() > 1000) { // 예제 값: 1000개 이상 후보가 나오면 제한
+    //    //std::cerr << "Warning: Too many candidates (" << candidates.size() << "), skipping search.\n";
+    //    _aligned_free(normalizedQuery);
+    //    return {};
+    //}
+
     if (candidates.empty()) {
         _aligned_free(normalizedQuery);
         return {};
@@ -512,6 +520,66 @@ std::vector<std::pair<WeightEntry, float>>  SimilarityDB::FindNearest(const std:
     _aligned_free(normalizedQuery);
     return results;
 }
+
+/****************************************************************
+ * Function Name: FindNearestFull
+ * Description: 등록된 모든 벡터를 대상으로 코사인 유사도를 계산하여
+ *              k개의 가장 가까운 가중치를 반환.
+ * Parameters:
+ *   - queryVec: 검색할 쿼리 벡터
+ *   - k: 반환할 최대 이웃 수
+ * Return: (WeightEntry, similarity) 쌍의 벡터
+ ****************************************************************/
+std::vector<std::pair<WeightEntry, float>> SimilarityDB::FindNearestFull(
+    const std::vector<float>& queryVec, int k)
+{
+    if (queryVec.size() != vectorDim || weights.empty()) {
+        return {};  // 벡터가 없거나 차원이 일치하지 않으면 빈 벡터 반환
+    }
+
+    // 쿼리 벡터 정규화
+    float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
+    if (!normalizedQuery) return {};
+    memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
+    NormalizeVector(normalizedQuery, vectorDim);
+
+    // 모든 가중치 벡터와 유사도를 계산하여 저장
+    std::vector<std::pair<float, WeightEntry>> similarities;
+    similarities.reserve(weights.size());
+
+    for (const auto& entry : weights) {
+        float sim = CosineSimilarity(normalizedQuery, entry.vector, vectorDim);
+        similarities.emplace_back(sim, WeightEntry(vectorDim));  // 새로운 WeightEntry 생성
+        memcpy(similarities.back().second.vector, entry.vector, vectorDim * sizeof(float)); // 벡터 복사
+        similarities.back().second.id = entry.id;
+        strncpy_s(similarities.back().second.filePath, entry.filePath, MAX_FILE_PATH);
+    }
+
+    _aligned_free(normalizedQuery);
+
+    if (similarities.empty()) {
+        return {};
+    }
+
+    // k개의 최상위 유사도를 찾기 위해 partial_sort 사용
+    size_t actualK = std::min(static_cast<size_t>(k), similarities.size());
+    std::partial_sort(
+        similarities.begin(),
+        similarities.begin() + actualK,
+        similarities.end(),
+        [](const auto& a, const auto& b) { return a.first > b.first; }
+    );
+
+    // 결과를 반환할 벡터 (WeightEntry, similarity)
+    std::vector<std::pair<WeightEntry, float>> results;
+    results.reserve(actualK);
+    for (size_t i = 0; i < actualK; i++) {
+        results.emplace_back(std::move(similarities[i].second), similarities[i].first);
+    }
+
+    return results;
+}
+
 
 /****************************************************************
 * Function Name: Sync
@@ -643,31 +711,71 @@ int test_mean() {
     return 0;
 }
 
+
+constexpr int VECTOR_DIM = 16; // 벡터 차원
 int test_similarity_db() {
     try {
-        SimilarityDB sdb(3, 5, 8); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
+        SimilarityDB sdb(VECTOR_DIM, 4, 4); // 3차원 벡터, 5개 해시 테이블, 8비트 해시
 
         //if (sdb.Load()) std::cout << "Loaded existing db\n"; // 기존 인덱스 로드 시도
 
         // 테스트 데이터 추가
-        sdb.Add({ 0.1f, 2.0f, 0.1f }, "C:\\data\\file1.txt");
+        /*sdb.Add({ 0.1f, 2.0f, 0.1f }, "C:\\data\\file1.txt");
         sdb.Add({ 4.0f, 5.0f, 6.0f }, "C:\\data\\file2.txt");
-        sdb.Add({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");
+        sdb.Add({ 1.5f, 2.5f, 3.5f }, "C:\\data\\file3.txt");*/
+
+		// 1000개 테스트 벡터 추가
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+		for (int i = 0; i < 100000; ++i) {
+			std::vector<float> vec;
+			for (int j = 0; j < VECTOR_DIM; ++j) {
+				vec.push_back(dis(gen));
+			}
+			sdb.Add(vec, "C:\\data\\file1.txt");
+		}
+
 
         // 삭제 테스트
         sdb.Delete(1); // ID 1인 가중치 삭제
 
-        std::vector<float> query = { 1.2f, 2.2f, 3.2f };
+        std::vector<float> query;
+        std::vector<std::pair<WeightEntry, float>> results;
+
+		// 검색 쿼리 벡터 생성
+		for (int j = 0; j < VECTOR_DIM; ++j) {
+			query.push_back(dis(gen));
+		}
+
         // 시간 계산
 		auto start = std::chrono::high_resolution_clock::now();
-        std::vector<std::pair<WeightEntry, float>> results;
-		for ( int i = 0; i < 100000; i++) {
+		for ( int i = 0; i < 100; i++) {
 			 results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
 		}
-        //auto results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
 		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = end - start;
-		std::cout << "Elapsed time: " << elapsed.count() << "s\n";
+		std::cout << "Normal search Elapsed time: " << elapsed.count() << "s\n";
+
+        start = std::chrono::high_resolution_clock::now();
+        for (int i = 0; i < 100; i++) {
+            results = sdb.FindNearestFull(query, 2); // 2개의 최근접 이웃 검색
+        }
+        end = std::chrono::high_resolution_clock::now();
+        elapsed = end - start;
+        std::cout << "Full search Elapsed time: " << elapsed.count() << "s\n";
+        // 시간 계산 종료
+
+        results = sdb.FindNearest(query, 2); // 2개의 최근접 이웃 검색
+
+        std::cout << "Found " << results.size() << " nearest weights:\n";
+        for (const auto& result : results) {
+            std::cout << "ID: " << result.first.id
+                << ", Similarity: " << result.second
+                << ", File: " << result.first.filePath << "\n";
+        }
+
+        results = sdb.FindNearestFull(query, 2); // 2개의 최근접 이웃 검색
 
         std::cout << "Found " << results.size() << " nearest weights:\n";
         for (const auto& result : results) {
@@ -680,9 +788,6 @@ int test_similarity_db() {
     }
     catch (const std::length_error& e) {
         std::cerr << "Length error: " << e.what() << "\n"; // 크기 관련 예외 처리
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Exception: " << e.what() << "\n"; // 기타 예외 처리
     }
 
     return 0;

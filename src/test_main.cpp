@@ -17,9 +17,10 @@
 #include "sentencepiece.h"
 #include "weights.h"
 #include "math.h"
-#include "similarity_db.h"
+#include "spherical_grid.h"
 #include "bm25.h"
 #include "data_loader.h"
+#include "cube_search.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
@@ -62,10 +63,11 @@ int main() {
 	//test_weights();
 	//test_math();
 	//test_mapping();
-	//test_similarity_db();
+    test_spherical_grid();
 	//test_mean();
     //test_bm25();
-	test_data_loader();
+	//test_data_loader();
+    //test_cube_search();
     
     return 0;
 }
