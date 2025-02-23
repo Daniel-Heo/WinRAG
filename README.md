@@ -23,11 +23,7 @@ AI 모델의 가중치 전체를 메모리에 1차원으로 정렬해서 올려�
 
 - 유사도 계산 : SIMD로 처리 ( SSE2 / (AVX2+FMA3). 일반 PC에서 사용하는 것이라 심플한 형태를 취할 예정임. GPU는 적용하지 않을 예정. )
 - 단점 : 완벽한 k - NN이 아닌 근사 결과 제공. 데이터가 1000개 미만일 경우에 풀스캔과 차이가 많이 남. 
-
-  
-- 저장 : 파일로 저장을합니다. sdb.index(index_no와 가중치 데이터), sdb.data ( index_no와 파일 path )
-- 불러오기 : sdb.index, sdb.data파일에서 데이터를 불러옵니다.
-- 추가/삭제 : 제공
+- 저장/불러오기/추가/삭제 : sdb.data파일로 저장/불러오기
 - 기본 벡터 연산 함수 제공 :
 ```cpp
 void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
