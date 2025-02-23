@@ -56,7 +56,7 @@ void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
 std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
 float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
 
-int test_spherical_grid();
+int test_cluster_db();
 int test_mean();
 
 /****************************************************************
@@ -117,24 +117,52 @@ struct WeightEntry {
 /**
  * LSH 기반 k-NN 검색을 지원하는 유사도 데이터베이스
  */
-class SphericalGrid {
-private:
-    int vectorDim;
-    int numSectors;
-    std::unordered_map<int, std::vector<WeightEntry>> sectorBuckets;
-    int nextID = 0;  // 항상 증가하는 ID (삭제 후에도 재사용하지 않음)
+//class SphericalGrid {
+//private:
+//    int vectorDim;
+//    int numSectors;
+//    std::unordered_map<int, std::vector<WeightEntry>> sectorBuckets;
+//    int nextID = 0;  // 항상 증가하는 ID (삭제 후에도 재사용하지 않음)
+//
+//    int GetSectorIndex(const float* vec) const;
+//
+//public:
+//    explicit SphericalGrid(int dimension);
+//    bool Add(const std::vector<float>& vec, const char* filePath);
+//    //std::vector<std::pair<WeightEntry, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
+//    std::vector<std::pair<const WeightEntry*, float>> FindNearestGrid(
+//        const std::vector<float>& queryVec, int k);
+//    std::vector<std::pair<const WeightEntry*, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
+//    bool Delete(int id);
+//    bool Save();
+//    bool Load();
+//    size_t GetCount();
+//};
 
-    int GetSectorIndex(const float* vec) const;
-
+class Cluster {
 public:
-    explicit SphericalGrid(int dimension);
+    std::vector<float> centroid; // 클러스터 중심점 벡터
+    std::vector<WeightEntry> entries; // 클러스터에 포함된 데이터
+};
+
+class ClusterDB {
+private:
+    int vectorDim;                        // 벡터 차원
+    int numClusters;                      // 클러스터 개수
+    std::vector<Cluster> clusters;        // 클러스터들의 배열
+public:
+    explicit ClusterDB(int dimension, int clusterCount);
     bool Add(const std::vector<float>& vec, const char* filePath);
-    //std::vector<std::pair<WeightEntry, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
-    std::vector<std::pair<const WeightEntry*, float>> FindNearest(
-        const std::vector<float>& queryVec, int k);
+    std::vector<std::pair<const WeightEntry*, float>> FindNearestCluster(const std::vector<float>& queryVec, int k);
+    // 전체 데이터에서 검색 수행 (Full Scan)
     std::vector<std::pair<const WeightEntry*, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
+
+    bool Save(const char* filename);
+    bool Load(const char* filename);
     bool Delete(int id);
-    bool Save();
-    bool Load();
     size_t GetCount();
+    void RunKMeansClustering(int iterations); // K-means 클러스터링 실행
+private:
+    
+    int GetNearestClusterIndex(const float* vec); // 가장 가까운 클러스터 찾기
 };
