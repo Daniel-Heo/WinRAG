@@ -136,6 +136,67 @@ std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix) {
     return result;
 }
 
+// RunKMeansClustering에서 사용하는 SIMD로 평균 벡터 계산
+//   행방향 처리 ( 메모리 연속성 높여서 처리 속도 향상 ) - 차원수가 많을수록 효과적
+std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_t vectorDim) {
+    size_t entryCount = entries.size();
+    std::vector<float> mean(vectorDim, 0.0f);
+
+    if (entryCount == 0) return mean;
+
+#if SIMD_TYPE == 1  // AVX2 코드 (8 floats)
+    size_t simdWidth = 8;
+    size_t simdEnd = vectorDim - (vectorDim % simdWidth);
+
+    for (size_t i = 0; i < simdEnd; i += simdWidth) {
+        __m256 sum = _mm256_setzero_ps();
+
+        for (const auto& entry : entries) {
+            sum = _mm256_add_ps(sum, _mm256_loadu_ps(entry.vector + i));
+        }
+
+        sum = _mm256_div_ps(sum, _mm256_set1_ps(static_cast<float>(entryCount)));
+        _mm256_storeu_ps(mean.data() + i, sum);
+    }
+
+    // 남은 부분 처리
+    for (size_t i = simdEnd; i < vectorDim; ++i) {
+        float sum = 0.0f;
+        for (const auto& entry : entries) {
+            sum += entry.vector[i];
+        }
+        mean[i] = sum / entryCount;
+    }
+
+#elif SIMD_TYPE == 0  // SSE2 코드 (4 floats)
+    size_t simdWidth = 4;
+    size_t simdEnd = vectorDim - (vectorDim % simdWidth);
+
+    for (size_t i = 0; i < simdEnd; i += simdWidth) {
+        __m128 sum = _mm_setzero_ps();
+
+        for (const auto& entry : entries) {
+            sum = _mm_add_ps(sum, _mm_loadu_ps(entry.vector + i));
+        }
+
+        sum = _mm_div_ps(sum, _mm_set1_ps(static_cast<float>(entryCount)));
+        _mm_storeu_ps(mean.data() + i, sum);
+    }
+
+    // 남은 부분 처리
+    for (size_t i = simdEnd; i < vectorDim; ++i) {
+        float sum = 0.0f;
+        for (const auto& entry : entries) {
+            sum += entry.vector[i];
+        }
+        mean[i] = sum / entryCount;
+    }
+
+#endif
+
+    return mean;
+}
+
 /****************************************************************
 * Function Name: CosineSimilarity
 * Description: 두 벡터 간 코사인 유사도를 SIMD로 계산 (노멀라이즈된 벡터 가정)
@@ -181,198 +242,10 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
     return dot; // 노멀라이즈된 벡터이므로 분모 생략
 }
 
-#if 0
-SphericalGrid::SphericalGrid(int dimension)
-    : vectorDim(dimension), numSectors(SECTOR_COUNT_PER_PAIR) {
-}
-
-int SphericalGrid::GetSectorIndex(const float* vec) const {
-    int PAIR_COUNT = vectorDim / 2;  // 벡터 크기를 2로 나눈 값 (나머지는 버림)
-
-    int hash = 0;
-    float angle, sectorSize;
-    int sectorIndex;
-    for (int i = 0; i < PAIR_COUNT; i++) {
-        angle = atan2f(vec[2 * i + 1], vec[2 * i]);  // (y, x) 기반 각도 계산
-        sectorSize = 2 * 3.14159265f / SECTOR_COUNT_PER_PAIR;
-        sectorIndex = static_cast<int>((angle + 3.14159265f) / sectorSize) % SECTOR_COUNT_PER_PAIR;
-        hash = hash * SECTOR_COUNT_PER_PAIR + sectorIndex;  // 해싱하여 하나의 값으로 변환
-    }
-
-    return hash % numSectors;  // 전체 섹터 개수에 맞춰 인덱스 조정
-}
-
-bool SphericalGrid::Add(const std::vector<float>& vec, const char* filePath) {
-    if (vec.size() != vectorDim) return false;
-
-    WeightEntry entry(vectorDim);
-    memcpy(entry.vector, vec.data(), vectorDim * sizeof(float));
-    NormalizeVector(entry.vector, vectorDim);
-
-    entry.id = nextID++;  // ID를 0부터 시작하여 +1씩 증가 (삭제된 ID 재사용 X)
-    strncpy_s(entry.filePath, filePath, MAX_FILE_PATH);
-
-    int sector = GetSectorIndex(entry.vector);
-    sectorBuckets[sector].emplace_back(std::move(entry));
-    return true;
-}
-
-std::vector<std::pair<const WeightEntry*, float>> SphericalGrid::FindNearestGrid(
-    const std::vector<float>& queryVec, int k)
-{
-    if (queryVec.size() != vectorDim) return {};
-
-    float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
-    if (!normalizedQuery) return {};
-    memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
-    NormalizeVector(normalizedQuery, vectorDim);
-
-    int sector = GetSectorIndex(normalizedQuery);
-    std::vector<std::pair<float, const WeightEntry*>> similarities;
-
-    auto searchSector = [&](int sectorIndex) {
-        if (sectorBuckets.count(sectorIndex) > 0) {
-            for (const auto& entry : sectorBuckets[sectorIndex]) {
-                float sim = CosineSimilarity(normalizedQuery, entry.vector, vectorDim);
-                similarities.emplace_back(sim, &entry);
-            }
-        }
-        };
-
-    // 현재 섹터 + 인접한 섹터(+1, -1)도 검색
-    searchSector(sector);
-    searchSector((sector + 1) % numSectors);
-    searchSector((sector - 1 + numSectors) % numSectors);
-
-    _aligned_free(normalizedQuery);
-
-    if (similarities.empty()) return {};
-
-    size_t actualK = std::min(static_cast<size_t>(k), similarities.size());
-    std::partial_sort(
-        similarities.begin(),
-        similarities.begin() + actualK,
-        similarities.end(),
-        [](const auto& a, const auto& b) { return a.first > b.first; });
-
-    std::vector<std::pair<const WeightEntry*, float>> results;
-    results.reserve(actualK);
-    for (size_t i = 0; i < actualK; i++) {
-        results.emplace_back(similarities[i].second, similarities[i].first);
-    }
-
-    return results;
-}
-
-std::vector<std::pair<const WeightEntry*, float>> SphericalGrid::FindNearestFull(
-    const std::vector<float>& queryVec, int k)
-{
-    if (queryVec.size() != vectorDim) return {};
-
-    float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
-    if (!normalizedQuery) return {};
-    memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
-    NormalizeVector(normalizedQuery, vectorDim);
-
-    std::vector<std::pair<float, const WeightEntry*>> similarities;
-
-    // **모든 벡터를 탐색 (풀스캔)**
-    for (const auto& [sectorIndex, entries] : sectorBuckets) {
-        for (const auto& entry : entries) {
-            float sim = CosineSimilarity(normalizedQuery, entry.vector, vectorDim);
-            similarities.emplace_back(sim, &entry); // 포인터 저장
-        }
-    }
-
-    _aligned_free(normalizedQuery);
-
-    if (similarities.empty()) return {};
-
-    size_t actualK = std::min(static_cast<size_t>(k), similarities.size());
-    std::partial_sort(
-        similarities.begin(),
-        similarities.begin() + actualK,
-        similarities.end(),
-        [](const auto& a, const auto& b) { return a.first > b.first; });
-
-    std::vector<std::pair<const WeightEntry*, float>> results;
-    results.reserve(actualK);
-    for (size_t i = 0; i < actualK; i++) {
-        results.emplace_back(similarities[i].second, similarities[i].first); // 포인터로 저장
-    }
-
-    return results;
-}
-
-bool SphericalGrid::Delete(int id) {
-    for (auto& [sector, entries] : sectorBuckets) {
-        auto it = std::remove_if(entries.begin(), entries.end(),
-            [id](const WeightEntry& entry) { return entry.id == id; });
-
-        if (it != entries.end()) {
-            entries.erase(it, entries.end());  // 해당 ID를 가진 벡터 삭제
-            return true;
-        }
-    }
-    return false;
-}
-
-bool SphericalGrid::Save() {
-    std::ofstream outFile(DATA_FILENAME, std::ios::binary);
-    if (!outFile) return false;
-
-    int totalEntries = GetCount();
-    outFile.write(reinterpret_cast<const char*>(&totalEntries), sizeof(int));
-    outFile.write(reinterpret_cast<const char*>(&nextID), sizeof(int));  // nextID 값 저장
-
-    for (const auto& [sector, entries] : sectorBuckets) {
-        for (const auto& entry : entries) {
-            outFile.write(reinterpret_cast<const char*>(&entry.id), sizeof(int));
-            outFile.write(reinterpret_cast<const char*>(entry.vector), sizeof(float) * vectorDim);
-            outFile.write(entry.filePath, MAX_FILE_PATH);
-        }
-    }
-
-    outFile.close();
-    return true;
-}
-
-bool SphericalGrid::Load() {
-    std::ifstream inFile(DATA_FILENAME, std::ios::binary);
-    if (!inFile) return false;
-
-    int totalEntries;
-    inFile.read(reinterpret_cast<char*>(&totalEntries), sizeof(int));
-    inFile.read(reinterpret_cast<char*>(&nextID), sizeof(int));  // ✅ nextID 값 복원
-
-    for (int i = 0; i < totalEntries; i++) {
-        int id;
-        std::vector<float> vec(vectorDim);
-        char filePath[MAX_FILE_PATH];
-
-        inFile.read(reinterpret_cast<char*>(&id), sizeof(int));
-        inFile.read(reinterpret_cast<char*>(vec.data()), sizeof(float) * vectorDim);
-        inFile.read(filePath, MAX_FILE_PATH);
-
-        Add(vec, filePath);
-    }
-
-    inFile.close();
-    return true;
-}
-
-size_t SphericalGrid::GetCount() {
-    size_t count = 0;
-    for (const auto& [sector, entries] : sectorBuckets) {
-        count += entries.size();
-    }
-    return count;
-}
-#endif
 // 클러스터DB 생성자
-ClusterDB::ClusterDB(int dimension, int clusterCount)
-    : vectorDim(dimension), numClusters(clusterCount) {
-    clusters.resize(clusterCount);
+ClusterDB::ClusterDB(int dimension)
+    : vectorDim(dimension), numClusters(CLUSTER_COUNT), isDataChanged(false) {
+    clusters.resize(numClusters);
     for (auto& cluster : clusters) {
         cluster.centroid.resize(vectorDim, 0.0f);
     }
@@ -393,20 +266,32 @@ bool ClusterDB::Add(const std::vector<float>& vec, const char* filePath) {
     int clusterIndex = GetNearestClusterIndex(entry.vector);
     clusters[clusterIndex].entries.emplace_back(std::move(entry));
 
+	isDataChanged = true;
+
     return true;
 }
 
+
+
+
 // K-means 클러스터링 알고리즘 실행
-void ClusterDB::RunKMeansClustering(int iterations) {
-    for (int iter = 0; iter < iterations; ++iter) {
-        // 각 클러스터 중심 재계산
+void ClusterDB::RunKMeansClustering(void) {
+    // 초기 centroid 무작위 초기화 (필수!)
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+    for (auto& cluster : clusters) {
+        for (auto& val : cluster.centroid) {
+            val = dis(gen);
+        }
+        NormalizeVector(cluster.centroid.data(), vectorDim);
+    }
+
+    for (int iter = 0; iter < numClusters; ++iter) {
+        // 각 클러스터 중심 SIMD로 빠르게 재계산
         for (auto& cluster : clusters) {
             if (!cluster.entries.empty()) {
-                std::vector<std::vector<float>> matrix(cluster.entries.size());
-                for (size_t i = 0; i < cluster.entries.size(); ++i) {
-                    matrix[i].assign(cluster.entries[i].vector, cluster.entries[i].vector + vectorDim);
-                }
-                cluster.centroid = MeanVector(matrix);
+                // SIMD 최적화 함수로 평균 계산
+                cluster.centroid = MeanVectorSIMD(cluster.entries, vectorDim);
                 NormalizeVector(cluster.centroid.data(), vectorDim);
             }
         }
@@ -416,6 +301,7 @@ void ClusterDB::RunKMeansClustering(int iterations) {
         for (auto& cluster : newClusters) {
             cluster.centroid.resize(vectorDim, 0.0f);
         }
+
         for (auto& cluster : clusters) {
             for (auto& entry : cluster.entries) {
                 int nearestIndex = GetNearestClusterIndex(entry.vector);
@@ -443,6 +329,12 @@ int ClusterDB::GetNearestClusterIndex(const float* vec) {
 // 클러스터 기반 검색
 std::vector<std::pair<const WeightEntry*, float>> ClusterDB::FindNearestCluster(const std::vector<float>& queryVec, int k) {
     if (queryVec.size() != vectorDim) return {};
+
+	// 데이터 변경이 있으면 클러스터링 실행
+	if (isDataChanged) {
+		RunKMeansClustering();
+		isDataChanged = false;
+	}
 
     float* normalizedQuery = static_cast<float*>(_aligned_malloc(vectorDim * sizeof(float), 16));
     memcpy(normalizedQuery, queryVec.data(), vectorDim * sizeof(float));
@@ -615,108 +507,25 @@ int test_mean() {
     return 0;
 }
 
-//constexpr int VECTOR_DIM = 2048; // 벡터 차원
-//int test_spherical_grid() {
-//    try {
-//        ClusterDB sdb(VECTOR_DIM);
-//
-//        std::random_device rd;
-//        std::mt19937 gen(rd());
-//        std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
-//
-//        // 데이터 입력
-//        for (int i = 0; i < 10000; ++i) {
-//            std::vector<float> vec;
-//            for (int j = 0; j < VECTOR_DIM; ++j) {
-//                vec.push_back(dis(gen));
-//            }
-//            sdb.Add(vec, "C:\\data\\file1.txt");
-//        }
-//        // sdb 저장 개수
-//		printf("SDB Count: %d\n", sdb.GetCount());  
-//
-//        // 삭제
-//        sdb.Delete(1);
-//
-//        // 쿼리 생성
-//        std::vector<float> query;
-//        for (int j = 0; j < VECTOR_DIM; ++j) {
-//            query.push_back(dis(gen));
-//        }
-//
-//        // 결과 변수를 올바른 타입으로 선언
-//        auto start = std::chrono::high_resolution_clock::now();
-//        std::vector<std::pair<const WeightEntry*, float>> results;
-//
-//        for (int i = 0; i < 100; i++) {
-//            results = sdb.FindNearestGrid(query, 2);
-//        }
-//
-//        auto end = std::chrono::high_resolution_clock::now();
-//        std::chrono::duration<double> elapsed = end - start;
-//        std::cout << "Normal search Elapsed time: " << elapsed.count() << "s\n";
-//        // --------------------
-//        start = std::chrono::high_resolution_clock::now();
-//        for (int i = 0; i < 100; i++) {
-//            results = sdb.FindNearestFull(query, 2);
-//        }
-//
-//        end = std::chrono::high_resolution_clock::now();
-//        elapsed = end - start;
-//        std::cout << "Normal search Elapsed time: " << elapsed.count() << "s\n";
-//
-//        // 검색 결과
-//        results = sdb.FindNearestGrid(query, 5);
-//
-//        std::cout << "Found " << results.size() << " nearest weights:\n";
-//        for (const auto& result : results) {
-//            std::cout << "ID: " << result.first->id
-//                << ", Similarity: " << result.second
-//                << ", File: " << result.first->filePath << "\n";
-//        }
-//
-//        results = sdb.FindNearestFull(query, 5);
-//
-//        std::cout << "Found " << results.size() << " nearest weights:\n";
-//        for (const auto& result : results) {
-//            std::cout << "ID: " << result.first->id
-//                << ", Similarity: " << result.second
-//                << ", File: " << result.first->filePath << "\n";
-//        }
-//    }
-//    catch (const std::length_error& e) {
-//        std::cerr << "Length error: " << e.what() << "\n"; // 크기 관련 예외 처리
-//    }
-//
-//    return 0;
-//}
-
+// 성능 테스트
 int test_cluster_db() {
     constexpr int VECTOR_DIM = 2048;  // 벡터 차원 설정
-    constexpr int CLUSTER_COUNT = 6; // 클러스터 수 설정
-    constexpr int DATA_COUNT = 10; // 데이터 개수
+    constexpr int DATA_COUNT = 10000; // 데이터 개수
 
-    ClusterDB cdb(VECTOR_DIM, CLUSTER_COUNT);
+    ClusterDB cdb(VECTOR_DIM);
 
     // 임의의 데이터 생성
     std::mt19937 gen(std::random_device{}());
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    //for (int i = 0; i < DATA_COUNT; ++i) {
-    //    std::vector<float> vec(VECTOR_DIM);
-    //    for (auto& val : vec) val = dist(gen);
-    //    cdb.Add(vec, "C:\\test\\file.txt");
-    //}
-    //cdb.Delete(1);
-	cdb.Load("cluster_db.bin");
+    //cdb.Load("cluster_db.bin");
+    for (int i = 0; i < DATA_COUNT; ++i) {
+        std::vector<float> vec(VECTOR_DIM);
+        for (auto& val : vec) val = dist(gen);
+        cdb.Add(vec, "C:\\test\\file.txt");
+    }
+    cdb.Delete(1);
 	printf("SDB Count: %d\n", cdb.GetCount());
-
-    // 클러스터링 수행
-    auto start = std::chrono::high_resolution_clock::now();
-    cdb.RunKMeansClustering(CLUSTER_COUNT);
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    std::cout << "Clustering time: " << elapsed.count() << "s\n";
 
     // 쿼리 생성 및 검색 수행
     std::vector<float> queryVec(VECTOR_DIM);
@@ -724,13 +533,13 @@ int test_cluster_db() {
 
     // 검색
     // 시간 측정
-	start = std::chrono::high_resolution_clock::now();
+	auto start = std::chrono::high_resolution_clock::now();
     std::vector<std::pair<const WeightEntry*, float>> results;
 	for (int i = 0; i < 100; ++i) {
-        results = cdb.FindNearestCluster(queryVec, 20);
+        results = cdb.FindNearestCluster(queryVec, 3);
 	}
-	end = std::chrono::high_resolution_clock::now();
-	elapsed = end - start;
+	auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
 	std::cout << "Scan time: " << elapsed.count() << "s\n";
 
     // 결과 출력
@@ -741,7 +550,7 @@ int test_cluster_db() {
 
 	start = std::chrono::high_resolution_clock::now();
 	for (int i = 0; i < 100; ++i) {
-		results = cdb.FindNearestFull(queryVec, 20);
+		results = cdb.FindNearestFull(queryVec, 3);
 	}
 	end = std::chrono::high_resolution_clock::now();
 	elapsed = end - start;

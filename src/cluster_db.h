@@ -48,9 +48,8 @@
 #endif
 
 //#define INDEX_FILENAME  "sdb.index"
-#define DATA_FILENAME   "sdb.data"
 #define MAX_FILE_PATH   256
-#define SECTOR_COUNT_PER_PAIR 12 // 각 (x, y) 쌍의 각도를 12개 구역으로 분할
+#define CLUSTER_COUNT 6 // 클러스터 개수 및 클러스터링 반복 횟수
 
 void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
 std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
@@ -114,31 +113,6 @@ struct WeightEntry {
     }
 };
 
-/**
- * LSH 기반 k-NN 검색을 지원하는 유사도 데이터베이스
- */
-//class SphericalGrid {
-//private:
-//    int vectorDim;
-//    int numSectors;
-//    std::unordered_map<int, std::vector<WeightEntry>> sectorBuckets;
-//    int nextID = 0;  // 항상 증가하는 ID (삭제 후에도 재사용하지 않음)
-//
-//    int GetSectorIndex(const float* vec) const;
-//
-//public:
-//    explicit SphericalGrid(int dimension);
-//    bool Add(const std::vector<float>& vec, const char* filePath);
-//    //std::vector<std::pair<WeightEntry, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
-//    std::vector<std::pair<const WeightEntry*, float>> FindNearestGrid(
-//        const std::vector<float>& queryVec, int k);
-//    std::vector<std::pair<const WeightEntry*, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
-//    bool Delete(int id);
-//    bool Save();
-//    bool Load();
-//    size_t GetCount();
-//};
-
 class Cluster {
 public:
     std::vector<float> centroid; // 클러스터 중심점 벡터
@@ -148,10 +122,11 @@ public:
 class ClusterDB {
 private:
     int vectorDim;                        // 벡터 차원
-    int numClusters;                      // 클러스터 개수
+	int numClusters;                      // 클러스터 개수 및 클러스터링 반복 횟수
     std::vector<Cluster> clusters;        // 클러스터들의 배열
+	bool isDataChanged;                       // 데이터 변경 여부
 public:
-    explicit ClusterDB(int dimension, int clusterCount);
+    explicit ClusterDB(int dimension);
     bool Add(const std::vector<float>& vec, const char* filePath);
     std::vector<std::pair<const WeightEntry*, float>> FindNearestCluster(const std::vector<float>& queryVec, int k);
     // 전체 데이터에서 검색 수행 (Full Scan)
@@ -161,7 +136,7 @@ public:
     bool Load(const char* filename);
     bool Delete(int id);
     size_t GetCount();
-    void RunKMeansClustering(int iterations); // K-means 클러스터링 실행
+    void RunKMeansClustering(void); // K-means 클러스터링 실행
 private:
     
     int GetNearestClusterIndex(const float* vec); // 가장 가까운 클러스터 찾기
