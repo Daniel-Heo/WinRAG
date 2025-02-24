@@ -11,8 +11,8 @@
     =========== =========== ====================================================
     2025.2.22   Daniel Heo  최초 생성
 *******************************************************************************/
-#include "sentencepiece.h"
-#include "weights.h"
+#include "tokenizer.h"
+#include "weight_loader.h"
 #include "cluster_db.h"
 #include "data_loader.h"
 #include "bm25.h"
@@ -57,7 +57,7 @@ int test_mapping() {
 int main() {
     //SetConsoleOutputCP(CP_UTF8);
     
-	//test_sentencepiece(); // 1.45초 // 0.033
+    test_tokenizer(); // 1.45초 // 0.033
 	//test_weights();
 	//test_mapping();
     //test_cluster_db();
@@ -65,7 +65,7 @@ int main() {
     //test_bm25();
 	//test_data_loader();
     //test_text_cluster_db();
-    test_weight_tokenizer();
+    //test_weight_tokenizer();
     
     return 0;
 }

@@ -12,7 +12,7 @@
     2025.2.23   Daniel Heo  최초 생성
 *******************************************************************************/
 #pragma once
-#include "weights.h"
+#include "weight_loader.h"
 #include "tokenizer.h"
 #include "math.h"
 #include <memory>

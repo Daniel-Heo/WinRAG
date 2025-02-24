@@ -159,7 +159,7 @@ std::vector<Token> Tokenizer::tokenize(const std::string& text) const {
     return tokens;
 }
 
-int test_sentencepiece() {
+int test_tokenizer() {
     Tokenizer tokenizer;
     tokenizer.loadTokenizer("tokenizer.json");
 

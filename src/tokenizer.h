@@ -79,4 +79,4 @@ public:
 };
 
 // 테스트 함수
-int test_sentencepiece();
+int test_tokenizer();
