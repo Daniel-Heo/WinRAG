@@ -3,15 +3,15 @@
     프로그램명칭 :  유사도 DB
     작   성   일 : 2025.2.22
     작   성   자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
-    프로그램용도 : spherical grid를 사용하여 코사인 유사도에 적합한 인덱싱을 구현하여 효율성을 높인다.
+    프로그램용도 : 클러스터링을 사용하여 효율성을 높인다.
 
-    참 고 사 항  :
+    참 고 사 항  : 정확한 연산이 필요한 경우 FindNearestFull을 사용하고 10000개 이상의 데이터에서 빠른 근사치 계산을 원할 경우 FindNearestCluster를 사용한다.
     라 이 센 스  : MIT License
 
     ----------------------------------------------------------------------------
     수정일자    수정자      수정내용
     =========== =========== ====================================================
-    2025.2.22   Daniel Heo  최초 생성
+    2025.2.23   Daniel Heo  최초 생성
     ----------------------------------------------------------------------------
 
 *******************************************************************************/
@@ -119,6 +119,10 @@ public:
     std::vector<WeightEntry> entries; // 클러스터에 포함된 데이터
 };
 
+/****************************************************************
+* Class Name: ClusterDB
+* Description: ClusterDB는 클러스터링을 사용하여 데이터를 저장하고 유사도로 검색하는 클래스
+****************************************************************/
 class ClusterDB {
 private:
     int vectorDim;                        // 벡터 차원
@@ -128,16 +132,16 @@ private:
 public:
     explicit ClusterDB(int dimension);
     bool Add(const std::vector<float>& vec, const char* filePath);
+	// 클러스터링을 사용하여 가장 가까운 데이터를 검색
     std::vector<std::pair<const WeightEntry*, float>> FindNearestCluster(const std::vector<float>& queryVec, int k);
     // 전체 데이터에서 검색 수행 (Full Scan)
     std::vector<std::pair<const WeightEntry*, float>> FindNearestFull(const std::vector<float>& queryVec, int k);
 
-    bool Save(const char* filename);
-    bool Load(const char* filename);
-    bool Delete(int id);
-    size_t GetCount();
+	bool Save(const char* filename); // 전체 클러스터 DB를 파일로 저장
+	bool Load(const char* filename); // 전체 클러스터 DB를 파일에서 불러옴
+	bool Delete(int id); // 주어진 ID를 가진 데이터를 삭제
+	size_t GetCount(); // 전체 데이터 개수
     void RunKMeansClustering(void); // K-means 클러스터링 실행
 private:
-    
     int GetNearestClusterIndex(const float* vec); // 가장 가까운 클러스터 찾기
 };
