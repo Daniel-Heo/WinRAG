@@ -33,6 +33,8 @@
 #include <condition_variable>
 #include <memory>      // aligned_alloc
 #include <functional>
+#include <sstream>
+#include <filesystem>  // C++17 필요
 #include "thread_pool.h"
 
 #ifdef __AVX2__
@@ -128,10 +130,12 @@ private:
     int vectorDim;                        // 벡터 차원
 	int numClusters;                      // 클러스터 개수 및 클러스터링 반복 횟수
     std::vector<Cluster> clusters;        // 클러스터들의 배열
+	int currentId;                                  // 현재 ID의 최대값
 	bool isDataChanged;                       // 데이터 변경 여부
 public:
     explicit ClusterDB(int dimension);
     bool Add(const std::vector<float>& vec, const char* filePath);
+    void RunKMeansClustering(void); // K-means 클러스터링 실행
 	// 클러스터링을 사용하여 가장 가까운 데이터를 검색
     std::vector<std::pair<const WeightEntry*, float>> FindNearestCluster(const std::vector<float>& queryVec, int k);
     // 전체 데이터에서 검색 수행 (Full Scan)
@@ -141,7 +145,8 @@ public:
 	bool Load(const char* filename); // 전체 클러스터 DB를 파일에서 불러옴
 	bool Delete(int id); // 주어진 ID를 가진 데이터를 삭제
 	size_t GetCount(); // 전체 데이터 개수
-    void RunKMeansClustering(void); // K-means 클러스터링 실행
+	int GetCurrentId(); // 현재 ID
+	bool InsertText(const std::vector<float>& vec, const std::string& str); // 텍스트  데이터 추가 ( id 생성,  data 파일생성, Add() )
 private:
     int GetNearestClusterIndex(const float* vec); // 가장 가까운 클러스터 찾기
 };

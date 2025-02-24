@@ -19,6 +19,7 @@
 #include "cluster_db.h"
 #include "data_loader.h"
 #include "bm25.h"
+#include "text_cluster_db.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
@@ -60,10 +61,11 @@ int main() {
 	//test_sentencepiece(); // 1.45초 // 0.033
 	//test_weights();
 	//test_mapping();
-    test_cluster_db();
+    //test_cluster_db();
 	//test_mean();
     //test_bm25();
 	//test_data_loader();
+    test_text_cluster_db();
     
     return 0;
 }

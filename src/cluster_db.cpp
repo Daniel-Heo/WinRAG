@@ -341,7 +341,7 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
 
 // 클러스터DB 생성자
 ClusterDB::ClusterDB(int dimension)
-    : vectorDim(dimension), numClusters(CLUSTER_COUNT), isDataChanged(false) {
+    : vectorDim(dimension), numClusters(CLUSTER_COUNT), isDataChanged(false), currentId(0) {
     clusters.resize(numClusters);
     for (auto& cluster : clusters) {
         cluster.centroid.resize(vectorDim, 0.0f);
@@ -356,7 +356,7 @@ bool ClusterDB::Add(const std::vector<float>& vec, const char* filePath) {
     memcpy(entry.vector, vec.data(), vectorDim * sizeof(float));
     NormalizeVector(entry.vector, vectorDim);
 
-    entry.id = static_cast<int>(GetCount());
+    entry.id = currentId++;
     strncpy_s(entry.filePath, filePath, MAX_FILE_PATH);
 
     // 가까운 클러스터 찾기
@@ -543,6 +543,8 @@ bool ClusterDB::Load(const char* filename) {
         cluster.centroid.resize(vectorDim, 0.0f);
     }
 
+    int maxId = currentId;
+
     // 로드한 데이터를 임시 클러스터(예: clusters[0])에 몰아서 저장
     for (size_t i = 0; i < totalEntries; ++i) {
         WeightEntry entry(vectorDim);
@@ -551,7 +553,10 @@ bool ClusterDB::Load(const char* filename) {
         inFile.read(entry.filePath, MAX_FILE_PATH);
 
         clusters[0].entries.emplace_back(std::move(entry));
+		if (entry.id >= maxId) maxId = entry.id+1;
     }
+
+	currentId = maxId;
 
     inFile.close();
     return true;
@@ -574,11 +579,16 @@ bool ClusterDB::Delete(int id) {
     return false; // 데이터 없으면 false 반환
 }
 
+
 // 전체 데이터 개수
 size_t ClusterDB::GetCount() {
     size_t cnt = 0;
     for (const auto& c : clusters) cnt += c.entries.size();
     return cnt;
+}
+
+int ClusterDB::GetCurrentId() {
+	return currentId;
 }
 
 
