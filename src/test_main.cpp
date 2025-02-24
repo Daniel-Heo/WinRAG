@@ -16,13 +16,9 @@
 *******************************************************************************/
 #include "sentencepiece.h"
 #include "weights.h"
-#include "math.h"
-#include "bm25.h"
-#include "data_loader.h"
-//#include "spherical_grid.h"
-//#include "similarity_db.h"
-//#include "cube_search_cluster.h"
 #include "cluster_db.h"
+#include "data_loader.h"
+#include "bm25.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
@@ -63,16 +59,11 @@ int main() {
     
 	//test_sentencepiece(); // 1.45초 // 0.033
 	//test_weights();
-	//test_math();
 	//test_mapping();
-    //test_spherical_grid();
-    //test_cube_search();
     test_cluster_db();
-    //test_similarity_db();
 	//test_mean();
     //test_bm25();
 	//test_data_loader();
-    //test_cube_search();
     
     return 0;
 }

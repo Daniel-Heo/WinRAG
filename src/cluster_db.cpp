@@ -77,7 +77,6 @@ void NormalizeVector(float* vec, size_t size) {
 
 /****************************************************************
 * Function Name: MeanVector
-* TODO : 32바이트 정렬된 2D 벡터 사용을 하면 성능이 향상될 수 있음 ( 테스트 해본 바로는 에러가 심함 )
 * Description: 벡터를 SIMD를 사용하여 평균을 낸다.
 * Parameters:
 *   - matrix: 평균을 계산할 벡터
@@ -589,7 +588,7 @@ int test_mean() {
     constexpr int cols = 8;
 
     // 2D 벡터 생성
-    std::vector<std::vector<float>> matrix(rows, std::vector<float>(cols, 1.0f));  // 모든 값 1.0f로 초기화
+    std::vector<std::vector<float>> matrix(rows, std::vector<float>(cols, 2.0f));  // 모든 값 1.0f로 초기화
 
     // 평균 계산
     std::vector<float> result = MeanVector(matrix);
@@ -633,9 +632,11 @@ int test_cluster_db() {
     for (auto& val : queryVec) val = dist(gen);
 
     // 검색
+    std::vector<std::pair<const WeightEntry*, float>> results;
+    results = cdb.FindNearestCluster(queryVec, 3); // RunKMeansClustering 수행
+
     // 시간 측정
 	start = std::chrono::high_resolution_clock::now();
-    std::vector<std::pair<const WeightEntry*, float>> results;
 	for (int i = 0; i < 100; ++i) {
         results = cdb.FindNearestCluster(queryVec, 3);
 	}
