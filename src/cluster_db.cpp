@@ -90,43 +90,94 @@ std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix) {
     std::vector<float> result(cols, 0.0f);
 
     for (int i = 0; i < cols; i++) {
-#if SIMD_TYPE == 1  // AVX2 + FMA3 사용
-        __m256 sum_vec = _mm256_setzero_ps();  // 256비트 (8개 float) 0 초기화
+#if SIMD_TYPE == 1  // AVX2 + FMA3 (8 floats씩 처리, 4회 언롤링)
+        __m256 sum_vec1 = _mm256_setzero_ps();
+        __m256 sum_vec2 = _mm256_setzero_ps();
+        __m256 sum_vec3 = _mm256_setzero_ps();
+        __m256 sum_vec4 = _mm256_setzero_ps();
         int j = 0;
 
-        // SIMD 8개씩 더하기 (개별 값 로드)
-        for (; j + 8 <= rows; j += 8) {
-            __m256 row_data = _mm256_set_ps(
+        // 한 번에 32개씩 처리 (8 floats × 4회 언롤링)
+        for (; j + 31 < rows; j += 32) {
+            sum_vec1 = _mm256_add_ps(sum_vec1, _mm256_set_ps(
                 matrix[j + 7][i], matrix[j + 6][i], matrix[j + 5][i], matrix[j + 4][i],
-                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j][i]
-            );
-            sum_vec = _mm256_add_ps(sum_vec, row_data);
+                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j + 0][i]));
+
+            sum_vec2 = _mm256_add_ps(sum_vec2, _mm256_set_ps(
+                matrix[j + 15][i], matrix[j + 14][i], matrix[j + 13][i], matrix[j + 12][i],
+                matrix[j + 11][i], matrix[j + 10][i], matrix[j + 9][i], matrix[j + 8][i]));
+
+            sum_vec3 = _mm256_add_ps(sum_vec3, _mm256_set_ps(
+                matrix[j + 23][i], matrix[j + 22][i], matrix[j + 21][i], matrix[j + 20][i],
+                matrix[j + 19][i], matrix[j + 18][i], matrix[j + 17][i], matrix[j + 16][i]));
+
+            sum_vec4 = _mm256_add_ps(sum_vec4, _mm256_set_ps(
+                matrix[j + 31][i], matrix[j + 30][i], matrix[j + 29][i], matrix[j + 28][i],
+                matrix[j + 27][i], matrix[j + 26][i], matrix[j + 25][i], matrix[j + 24][i]));
         }
 
-        // SIMD 결과 합산
+        // 남은 8개 단위 처리
+        __m256 sum_vec_remain = _mm256_setzero_ps();
+        for (; j + 7 < rows; j += 8) {
+            sum_vec_remain = _mm256_add_ps(sum_vec_remain, _mm256_set_ps(
+                matrix[j + 7][i], matrix[j + 6][i], matrix[j + 5][i], matrix[j + 4][i],
+                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j + 0][i]));
+        }
+
+        // SIMD 결과 모두 합산
+        sum_vec1 = _mm256_add_ps(sum_vec1, sum_vec2);
+        sum_vec3 = _mm256_add_ps(sum_vec3, sum_vec4);
+        sum_vec1 = _mm256_add_ps(sum_vec1, sum_vec3);
+        sum_vec1 = _mm256_add_ps(sum_vec1, sum_vec_remain);
+
         float temp[8];
-        _mm256_storeu_ps(temp, sum_vec);  // Unaligned Store
+        _mm256_storeu_ps(temp, sum_vec1);
         float sum = temp[0] + temp[1] + temp[2] + temp[3] + temp[4] + temp[5] + temp[6] + temp[7];
 
-#elif SIMD_TYPE == 0  // SSE2 사용
-        __m128 sum_vec = _mm_setzero_ps();  // 128비트 (4개 float) 0 초기화
+#elif SIMD_TYPE == 0  // SSE2 사용 (4 floats씩 처리, 4회 언롤링)
+        __m128 sum_vec1 = _mm_setzero_ps();
+        __m128 sum_vec2 = _mm_setzero_ps();
+        __m128 sum_vec3 = _mm_setzero_ps();
+        __m128 sum_vec4 = _mm_setzero_ps();
         int j = 0;
 
-        // SIMD 4개씩 더하기 (개별 값 로드)
-        for (; j + 4 <= rows; j += 4) {
-            __m128 row_data = _mm_set_ps(
-                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j][i]
-            );
-            sum_vec = _mm_add_ps(sum_vec, row_data);
+        // 한 번에 16개씩 처리 (4 floats × 4회 언롤링)
+        for (; j + 15 < rows; j += 16) {
+            sum_vec1 = _mm_add_ps(sum_vec1, _mm_set_ps(
+                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j + 0][i]));
+
+            sum_vec2 = _mm_add_ps(sum_vec2, _mm_set_ps(
+                matrix[j + 7][i], matrix[j + 6][i], matrix[j + 5][i], matrix[j + 4][i]));
+
+            sum_vec3 = _mm_add_ps(sum_vec3, _mm_set_ps(
+                matrix[j + 11][i], matrix[j + 10][i], matrix[j + 9][i], matrix[j + 8][i]));
+
+            sum_vec4 = _mm_add_ps(sum_vec4, _mm_set_ps(
+                matrix[j + 15][i], matrix[j + 14][i], matrix[j + 13][i], matrix[j + 12][i]));
         }
 
-        // SIMD 결과 합산
-        float temp[4];
-        _mm_storeu_ps(temp, sum_vec);  // Unaligned Store
-        float sum = temp[0] + temp[1] + temp[2] + temp[3];
-#endif
+        // 남은 4개 단위 처리
+        __m128 sum_vec_remain = _mm_setzero_ps();
+        for (; j + 3 < rows; j += 4) {
+            sum_vec_remain = _mm_add_ps(sum_vec_remain, _mm_set_ps(
+                matrix[j + 3][i], matrix[j + 2][i], matrix[j + 1][i], matrix[j + 0][i]));
+        }
 
-        // 남은 요소 처리
+        // SIMD 결과 모두 합산
+        sum_vec1 = _mm_add_ps(sum_vec1, sum_vec2);
+        sum_vec3 = _mm_add_ps(sum_vec3, sum_vec4);
+        sum_vec1 = _mm_add_ps(sum_vec1, sum_vec3);
+        sum_vec1 = _mm_add_ps(sum_vec1, sum_vec_remain);
+
+        float temp[4];
+        _mm_storeu_ps(temp, sum_vec1);
+        float sum = temp[0] + temp[1] + temp[2] + temp[3];
+
+#else  // SIMD 미사용 일반 코드 (범용)
+        float sum = 0.0f;
+        int j = 0;
+#endif
+        // 남은 요소 일반 처리 (공통)
         for (; j < rows; j++) {
             sum += matrix[j][i];
         }
@@ -136,15 +187,17 @@ std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix) {
     return result;
 }
 
+
 // RunKMeansClustering에서 사용하는 SIMD로 평균 벡터 계산
 //   행방향 처리 ( 메모리 연속성 높여서 처리 속도 향상 ) - 차원수가 많을수록 효과적
+// SIMD로 평균 벡터 계산 (SIMD 미사용 환경도 지원)
 std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_t vectorDim) {
     size_t entryCount = entries.size();
     std::vector<float> mean(vectorDim, 0.0f);
 
     if (entryCount == 0) return mean;
 
-#if SIMD_TYPE == 1  // AVX2 코드 (8 floats)
+#if SIMD_TYPE == 1  // AVX2 코드 (256비트, 8 float씩 처리)
     size_t simdWidth = 8;
     size_t simdEnd = vectorDim - (vectorDim % simdWidth);
 
@@ -159,7 +212,7 @@ std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_
         _mm256_storeu_ps(mean.data() + i, sum);
     }
 
-    // 남은 부분 처리
+    // 남은 원소 처리
     for (size_t i = simdEnd; i < vectorDim; ++i) {
         float sum = 0.0f;
         for (const auto& entry : entries) {
@@ -168,7 +221,7 @@ std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_
         mean[i] = sum / entryCount;
     }
 
-#elif SIMD_TYPE == 0  // SSE2 코드 (4 floats)
+#elif SIMD_TYPE == 0  // SSE2 코드 (128비트, 4 float씩 처리)
     size_t simdWidth = 4;
     size_t simdEnd = vectorDim - (vectorDim % simdWidth);
 
@@ -183,7 +236,7 @@ std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_
         _mm_storeu_ps(mean.data() + i, sum);
     }
 
-    // 남은 부분 처리
+    // 남은 원소 처리
     for (size_t i = simdEnd; i < vectorDim; ++i) {
         float sum = 0.0f;
         for (const auto& entry : entries) {
@@ -192,6 +245,15 @@ std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_
         mean[i] = sum / entryCount;
     }
 
+#else  // SIMD 사용 안 함 (범용코드, 언제나 동작)
+    // SIMD_TYPE이 AVX2나 SSE2가 아닌 경우 일반적인 방식으로 계산
+    for (size_t i = 0; i < vectorDim; ++i) {
+        float sum = 0.0f;
+        for (const auto& entry : entries) {
+            sum += entry.vector[i];
+        }
+        mean[i] = sum / entryCount;
+    }
 #endif
 
     return mean;
@@ -212,34 +274,70 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size) {
     size_t i = 0;
     float dot = 0.0f;
 
-#if SIMD_TYPE == 1  // AVX2 + FMA3 코드
-    __m256 sum = _mm256_setzero_ps(); // 256비트 레지스터(8개 float)
-    for (; i + 7 < size; i += 8) {
-        __m256 a = _mm256_loadu_ps(v1 + i);
-        __m256 b = _mm256_loadu_ps(v2 + i);
-        sum = _mm256_fmadd_ps(a, b, sum);  // FMA3: sum += a * b
+#if SIMD_TYPE == 1  // AVX2 + FMA3 코드 (루프 언롤링 적용)
+    __m256 sum1 = _mm256_setzero_ps();
+    __m256 sum2 = _mm256_setzero_ps();
+    __m256 sum3 = _mm256_setzero_ps();
+    __m256 sum4 = _mm256_setzero_ps();
+
+    size_t simdBlockSize = 32;  // 8 floats * 4 (언롤링 4회)
+    size_t simdEnd = size - (size % simdBlockSize);
+
+    for (; i < simdEnd; i += simdBlockSize) {
+        sum1 = _mm256_fmadd_ps(_mm256_loadu_ps(v1 + i), _mm256_loadu_ps(v2 + i), sum1);
+        sum2 = _mm256_fmadd_ps(_mm256_loadu_ps(v1 + i + 8), _mm256_loadu_ps(v2 + i + 8), sum2);
+        sum3 = _mm256_fmadd_ps(_mm256_loadu_ps(v1 + i + 16), _mm256_loadu_ps(v2 + i + 16), sum3);
+        sum4 = _mm256_fmadd_ps(_mm256_loadu_ps(v1 + i + 24), _mm256_loadu_ps(v2 + i + 24), sum4);
     }
+
+    // 부분합 계산
+    sum1 = _mm256_add_ps(sum1, sum2);
+    sum3 = _mm256_add_ps(sum3, sum4);
+    sum1 = _mm256_add_ps(sum1, sum3);
+
     float sums[8];
-    _mm256_storeu_ps(sums, sum);
+    _mm256_storeu_ps(sums, sum1);
+
     dot = sums[0] + sums[1] + sums[2] + sums[3] + sums[4] + sums[5] + sums[6] + sums[7];
-
-#elif SIMD_TYPE == 0  // SSE2 코드
-    __m128 sum = _mm_setzero_ps();
-    for (; i + 3 < size; i += 4) {
-        __m128 a = _mm_loadu_ps(v1 + i);
-        __m128 b = _mm_loadu_ps(v2 + i);
-        sum = _mm_add_ps(sum, _mm_mul_ps(a, b));
-    }
-    float sums[4];
-    _mm_storeu_ps(sums, sum);
-    dot = sums[0] + sums[1] + sums[2] + sums[3];
-
-#endif
 
     // 남은 요소 처리
     for (; i < size; i++) dot += v1[i] * v2[i];
 
-    return dot; // 노멀라이즈된 벡터이므로 분모 생략
+#elif SIMD_TYPE == 0  // SSE2 코드 (언롤링 4회 적용)
+    __m128 sum1 = _mm_setzero_ps();
+    __m128 sum2 = _mm_setzero_ps();
+    __m128 sum3 = _mm_setzero_ps();
+    __m128 sum4 = _mm_setzero_ps();
+
+    size_t simdBlockSize = 16;  // 4 floats * 4
+    size_t simdEnd = size - (size % simdBlockSize);
+
+    for (; i < simdEnd; i += simdBlockSize) {
+        sum1 = _mm_add_ps(sum1, _mm_mul_ps(_mm_loadu_ps(v1 + i), _mm_loadu_ps(v2 + i)));
+        sum2 = _mm_add_ps(sum2, _mm_mul_ps(_mm_loadu_ps(v1 + i + 4), _mm_loadu_ps(v2 + i + 4)));
+        sum3 = _mm_add_ps(sum3, _mm_mul_ps(_mm_loadu_ps(v1 + i + 8), _mm_loadu_ps(v2 + i + 8)));
+        sum4 = _mm_add_ps(sum4, _mm_mul_ps(_mm_loadu_ps(v1 + i + 12), _mm_loadu_ps(v2 + i + 12)));
+    }
+
+    // 부분합 계산
+    sum1 = _mm_add_ps(sum1, sum2);
+    sum3 = _mm_add_ps(sum3, sum4);
+    sum1 = _mm_add_ps(sum1, sum3);
+
+    float sums[4];
+    _mm_storeu_ps(sums, sum1);
+    dot = sums[0] + sums[1] + sums[2] + sums[3];
+
+    // 남은 요소 처리
+    for (; i < size; i++) dot += v1[i] * v2[i];
+
+#else  // SIMD 미사용 일반 코드
+    for (i = 0; i < size; i++) {
+        dot += v1[i] * v2[i];
+    }
+#endif
+
+    return dot; // 이미 정규화된 벡터를 가정
 }
 
 // 클러스터DB 생성자
@@ -515,12 +613,18 @@ int test_cluster_db() {
     std::mt19937 gen(std::random_device{}());
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
+    // 시간 측정
+    auto start = std::chrono::high_resolution_clock::now();
     //cdb.Load("cluster_db.bin");
     for (int i = 0; i < DATA_COUNT; ++i) {
         std::vector<float> vec(VECTOR_DIM);
         for (auto& val : vec) val = dist(gen);
         cdb.Add(vec, "C:\\test\\file.txt");
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Insert time: " << elapsed.count() << "s\n";
+
     cdb.Delete(1);
 	printf("SDB Count: %d\n", cdb.GetCount());
 
@@ -530,13 +634,13 @@ int test_cluster_db() {
 
     // 검색
     // 시간 측정
-	auto start = std::chrono::high_resolution_clock::now();
+	start = std::chrono::high_resolution_clock::now();
     std::vector<std::pair<const WeightEntry*, float>> results;
 	for (int i = 0; i < 100; ++i) {
         results = cdb.FindNearestCluster(queryVec, 3);
 	}
-	auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
+	end = std::chrono::high_resolution_clock::now();
+    elapsed = end - start;
 	std::cout << "Scan time: " << elapsed.count() << "s\n";
 
     // 결과 출력
