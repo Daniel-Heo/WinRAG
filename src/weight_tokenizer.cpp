@@ -1,4 +1,17 @@
-﻿#include "weight_tokenizer.h"
+﻿/*******************************************************************************
+    파     일     명 : weight_tokenizer.cpp
+    프로그램명칭 :  WeightTokenizer 클래스
+    프로그램용도 : WeightLoader와 Tokenizer 클래스를 래핑하여 복잡한 사용을 단순화
+    참  고  사  항  :
+
+    작    성    자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    라 이 센 스  : MIT License
+    ----------------------------------------------------------------------------
+    수정일자    수정자      수정내용
+    =========== =========== ====================================================
+    2025.2.23   Daniel Heo  최초 생성
+*******************************************************************************/
+#include "weight_tokenizer.h"
 
 // 생성자 구현
 WeightTokenizer::WeightTokenizer(const std::string& weight_filename, const std::string& tokenizer_filename)

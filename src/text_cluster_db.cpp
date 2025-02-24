@@ -1,4 +1,17 @@
-﻿#include "text_cluster_db.h"
+﻿/*******************************************************************************
+    파     일     명 : text_cluster_db.cpp
+    프로그램명칭 :  유사도 DB 래퍼
+    프로그램용도 : cluster_db에 대한 직접적인 접근을 하지 않고 이 클래스를 통해서 편리하게 사용. (유사도 DB 래퍼)
+    참  고  사  항  :
+
+    작    성    자 : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    라 이 센 스  : MIT License
+    ----------------------------------------------------------------------------
+    수정일자    수정자      수정내용
+    =========== =========== ====================================================
+    2025.2.23   Daniel Heo  최초 생성
+*******************************************************************************/
+#include "text_cluster_db.h"
 
 TextClusterDB::TextClusterDB(int vectorDim, const char* relativePath)
     : clusterDB(vectorDim) {
