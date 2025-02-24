@@ -35,15 +35,51 @@
 #include <fcntl.h>
 #include "json.hpp"
 
+// Trie 검색 방식 선택 : 압축방식 Trie(Radix Trie)가 필요하면 적용을 고려해보자.
+#define TRIE_SEARCH_TYPE 1 // 0: Low memory,low speed  1: High memory,high speed 
+
+// 토큰 구조체
 struct Token {
-    std::string key;  // 문자열
-    int id;         // 정수
+    std::string key;   // 문자열
+    int id;            // 정수
 };
 
-// 토크나이저 파일 로드
-void loadTokenizer(const std::string& filename);
-// 텍스트를 입력받아 토큰화된 결과를 반환
-std::vector<Token> tokenize(const std::string& text);
+class Tokenizer {
+private:
+    struct TrieNode {
+        bool isEnd;
+        int id;
+#if TRIE_SEARCH_TYPE == 1 // 속도 향상을 위한 방법
+        TrieNode* children[256];
+#else
+        std::unordered_map<char, TrieNode*> children;
+#endif
+
+        TrieNode();
+    };
+
+    struct MemoryPool {
+        std::vector<TrieNode> pool;
+        size_t index;
+
+        explicit MemoryPool(size_t initialSize);
+        TrieNode* allocate();
+    };
+
+    // 멤버 변수
+    MemoryPool* nodePool;
+    TrieNode* root;
+
+    // 내부적으로 사용하는 helper 함수
+    std::pair<std::string, int> searchLastMatchedToken(const std::string& word) const;
+
+public:
+    Tokenizer();                            // 생성자
+    ~Tokenizer();                           // 소멸자 (메모리 관리)
+
+    void loadTokenizer(const std::string& filename);
+    std::vector<Token> tokenize(const std::string& text) const;
+};
 
 // 테스트 함수
 int test_sentencepiece();

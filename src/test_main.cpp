@@ -20,10 +20,12 @@
 #include "data_loader.h"
 #include "bm25.h"
 #include "text_cluster_db.h"
+#include "weight_tokenizer.h"
 
 int test_mapping() {
     // tokenizer 파일 로드
-    loadTokenizer("tokenizer.json");
+	Tokenizer tokenizer;
+	tokenizer.loadTokenizer("tokenizer.json");
 
 	// 가중치 파일 로드
     WeightLoader weightsData("embedding_weights.npy");
@@ -34,7 +36,7 @@ int test_mapping() {
     std::vector<Token> tokens;
 
     // 문장 토큰화
-    tokens = tokenize(text);
+    tokens = tokenizer.tokenize(text);
 
 	// 토큰으로 가중치 가져오기 
 	std::vector<std::vector<float>> weights;
@@ -65,7 +67,8 @@ int main() {
 	//test_mean();
     //test_bm25();
 	//test_data_loader();
-    test_text_cluster_db();
+    //test_text_cluster_db();
+    test_weight_tokenizer();
     
     return 0;
 }
