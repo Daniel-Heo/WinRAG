@@ -48,10 +48,10 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
     WeightTokenizer weightTokenizer("embedding_weights.npy", "tokenizer.json");
     TextClusterDB cdb(VECTOR_DIM, "db"); // 현재 디렉토리 밑에 db라는 디렉토리에 텍스트 데이터가 id번호로 파일이 생성된다.
 
-	// cdb.Load("cluster_db.bin"); // 저장된 DB 데이터를 사용하고 DataLoader를 사용하지 않는 경우
+    // cdb.Load("cluster_db.bin"); // 저장된 DB 데이터를 사용하고 DataLoader를 사용하지 않는 경우
     DataLoader loader;
 
-	// CSV 파일 로드
+    // CSV 파일 로드
     if (!loader.loadCSV(L"QA_total.csv")) {
         std::wcerr << L"CSV 파일을 불러오지 못했습니다." << std::endl;
         return 1;
@@ -59,7 +59,7 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
     auto [rows, cols] = loader.Size();
     std::cout << "Rows: " << rows << ", Columns: " << cols << std::endl;
 
-	// DB에 데이터 추가
+    // DB에 데이터 추가
     std::vector<float> averaged_weights;
     try {
         for (size_t i = 0; i < rows; ++i) {
@@ -71,10 +71,10 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
     catch (const std::exception& e) {
         std::cerr << "오류 발생: " << e.what() << std::endl;
     }
-	//cdb.Save("cluster_db.bin"); // 만들어진 DB 데이터를 저장한다.
+    //cdb.Save("cluster_db.bin"); // 만들어진 DB 데이터를 저장한다.
 
-	// 검색할 텍스트 입력 받기
-	std::string search_text;
+    // 검색할 텍스트 입력 받기
+    std::string search_text;
     std::string res;
     while (1) {
         std::cout << "검색할 텍스트를 입력하세요: ";
