@@ -25,12 +25,6 @@ AI 모델의 가중치 전체를 메모리에 1차원으로 정렬해서 올려�
 - 유사도 계산 : SIMD로 처리 ( SSE2 / (AVX2+FMA3). 일반 PC에서 사용하는 것이라 심플한 형태를 취할 예정임. GPU는 적용하지 않을 예정. )
 - 단점 : 클러스터링 검색시 완벽한 k - NN이 아닌 근사 결과 제공. 완벽한 검색이 필요하면 풀스캔 사용.
 - 저장/불러오기/추가/삭제 : 파일 이름을 직접 입력할 수 있음. ( 다양한 사용을 위해 )
-- 기본 벡터 연산 함수 제공 : 
-```cpp
-void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
-std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
-float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
-```
 
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
