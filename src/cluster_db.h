@@ -37,8 +37,9 @@
 #define MAX_FILE_PATH   256
 #define CLUSTER_COUNT 6 // 클러스터 개수 및 클러스터링 반복 횟수
 
-int test_cluster_db();
 int test_mean();
+int test_cluster_db();
+int test_cluster_db_accuracy();
 
 /****************************************************************
 * Class Name: WeightEntry
