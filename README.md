@@ -40,8 +40,50 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
 
    save_tokenizer.py : 토크나이저 파일 저장
 
-## 테스트
- - test_main.cpp : 공통으로 테스트 진행중
+## 사용 예제
+test_main.cpp 참조
+```
+    constexpr int VECTOR_DIM = 768;  // 벡터 차원 설정
 
-## TODO List
- - Similarity DB에 입력하는 방식을 datasets로 규칙성을 가지고 해당 pdf나 txt파일을 잘라내서 자동적으로 넣을 수 있는 라이브러리 개발
+    // 클래스 초기화
+    WeightTokenizer weightTokenizer("embedding_weights.npy", "tokenizer.json");
+    TextClusterDB cdb(VECTOR_DIM, "db"); // 현재 디렉토리 밑에 db라는 디렉토리에 텍스트 데이터가 id번호로 파일이 생성된다.
+
+    // cdb.Load("cluster_db.bin"); // 저장된 DB 데이터를 사용하고 DataLoader를 사용하지 않는 경우
+    DataLoader loader;
+
+    // CSV 파일 로드
+    if (!loader.loadCSV(L"QA_total.csv")) {
+        std::wcerr << L"CSV 파일을 불러오지 못했습니다." << std::endl;
+        return 1;
+    }
+    auto [rows, cols] = loader.Size();
+    std::cout << "Rows: " << rows << ", Columns: " << cols << std::endl;
+
+    // DB에 데이터 추가
+    std::vector<float> averaged_weights;
+    try {
+        for (size_t i = 0; i < rows; ++i) {
+            auto [q, a, d] = loader.get(i);
+            averaged_weights = weightTokenizer.GetWeight(q.c_str()); // 가중치 가져오기
+            cdb.InsertText(averaged_weights, a.c_str()); // DB에 저장
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "오류 발생: " << e.what() << std::endl;
+    }
+    //cdb.Save("cluster_db.bin"); // 만들어진 DB 데이터를 저장한다.
+
+    // 텍스트 입력 받아 검색 결과 출력
+    std::string search_text;
+    std::string res;
+    while (1) {
+        std::cout << "검색할 텍스트를 입력하세요: ";
+        search_text = readUtf8FromConsole(); // readUtf8FromConsole()은 test_main.cpp에 구현
+        search_text.erase(std::remove(search_text.begin(), search_text.end(), '\n'), search_text.end()); // \n 삭제
+        averaged_weights = weightTokenizer.GetWeight(search_text); // 가중치 가져오기
+        res = cdb.SearchText(averaged_weights, 1); // DB 검색
+        printf("검색 결과: %s\n", res.c_str());
+    }
+```
+
