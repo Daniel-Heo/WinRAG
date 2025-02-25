@@ -41,6 +41,7 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
    save_tokenizer.py : 토크나이저 파일 저장
 
 ## 사용 예제
+test_main.cpp 참조
 ```
     constexpr int VECTOR_DIM = 768;  // 벡터 차원 설정
 
