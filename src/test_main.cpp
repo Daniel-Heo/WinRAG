@@ -11,11 +11,11 @@
     =========== =========== ====================================================
     2025.2.22   Daniel Heo  최초 생성
 *******************************************************************************/
-#include "tokenizer.h"
-#include "weight_loader.h"
-#include "cluster_db.h"
+//#include "tokenizer.h"
+//#include "weight_loader.h"
+//#include "cluster_db.h"
+//#include "bm25.h"
 #include "data_loader.h"
-#include "bm25.h"
 #include "text_cluster_db.h"
 #include "weight_tokenizer.h"
 
@@ -109,13 +109,10 @@ int test_main() {
 	// 검색할 텍스트 입력 받기
 	std::string search_text;
     std::string res;
-    std::string temp;
     while (1) {
         std::cout << "검색할 텍스트를 입력하세요: ";
         search_text = readUtf8FromConsole();
         search_text.erase(std::remove(search_text.begin(), search_text.end(), '\n'), search_text.end());
-		//printHexString(search_text);
-
         averaged_weights = weightTokenizer.GetWeight(search_text);
         res = cdb.SearchText(averaged_weights, 1);
         printf("검색 결과: %s\n", res.c_str());
