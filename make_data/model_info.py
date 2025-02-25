@@ -30,4 +30,5 @@ def print_model_architecture(model_name):
 
 # 모델 확인
 print_model_architecture("skt/kogpt2-base-v2")
+#print_model_architecture("jhgan/ko-sbert-nli")
 

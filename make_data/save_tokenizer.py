@@ -2,6 +2,7 @@ from transformers import AutoTokenizer
 import os
 
 MODEL_NAME = "skt/kogpt2-base-v2"
+#MODEL_NAME = "jhgan/ko-sbert-nli"
 
 def save_only_tokenizer_json(src_model: str, tgt_directory: str):
     # 토크나이저 로드
