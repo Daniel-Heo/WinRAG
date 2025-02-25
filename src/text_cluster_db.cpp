@@ -61,6 +61,7 @@ bool TextClusterDB::InsertText(const std::vector<float>& vec, const std::string&
 std::string TextClusterDB::SearchText(const std::vector<float>& vec, int k) {
 	std::string result;
 	std::vector<std::pair<const WeightEntry*, float>> entries = clusterDB.FindNearestFull(vec, k);
+    //std::vector<std::pair<const WeightEntry*, float>> entries = clusterDB.FindNearestCluster(vec, k);
 	for (const auto& entry : entries) {
 		std::ifstream inFile(entry.first->filePath);
 		if (!inFile) {
@@ -98,7 +99,7 @@ int test_text_cluster_db() {
     for (auto& val : queryVec) val = dist(gen);
 
     // 검색
-    std::string res = cdb.SearchText(queryVec, 1); // RunKMeansClustering 수행
+    std::string res = cdb.SearchText(queryVec, 2); // RunKMeansClustering 수행
 
 	printf("검색 결과: %s\n", res.c_str());
 
