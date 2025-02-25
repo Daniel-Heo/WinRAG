@@ -17,6 +17,9 @@
 #include "math.h"
 #include <memory>
 
+std::string to_string(const std::vector<float>& vec);
+std::string to_string(const std::vector<std::vector<float>>& vec2d);
+
 int test_weight_tokenizer();
 
 // WeightTokenizer 클래스
