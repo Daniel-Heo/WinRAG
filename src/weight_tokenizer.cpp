@@ -13,6 +13,30 @@
 *******************************************************************************/
 #include "weight_tokenizer.h"
 
+// 1D 벡터 출력 함수
+std::string to_string(const std::vector<float>& vec) {
+    std::ostringstream oss;
+    oss << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        oss << vec[i];
+        if (i != vec.size() - 1) oss << ", ";
+    }
+    oss << "]";
+    return oss.str();
+}
+
+// 2D 벡터 출력 함수
+std::string to_string(const std::vector<std::vector<float>>& vec2d) {
+    std::ostringstream oss;
+    oss << "[";
+    for (size_t i = 0; i < vec2d.size(); ++i) {
+        oss << to_string(vec2d[i]);  // 1D 벡터를 문자열로 변환
+        if (i != vec2d.size() - 1) oss << ", ";
+    }
+    oss << "]";
+    return oss.str();
+}
+
 // 생성자 구현
 WeightTokenizer::WeightTokenizer(const std::string& weight_filename, const std::string& tokenizer_filename)
 {
@@ -69,11 +93,7 @@ int test_weight_tokenizer() {
     std::vector<float> averaged_weights = weightTokenizer.GetWeight(text);
 
     // 결과 출력
-    std::cout << "입력 텍스트의 평균 가중치 벡터: " << std::endl;
-    for (const auto& weight : averaged_weights) {
-        std::cout << weight << " ";
-    }
-    std::cout << std::endl;
+    std::cout << "입력 텍스트의 평균 가중치 벡터: " << to_string(averaged_weights) << std::endl;
 
     return 0;
 }
