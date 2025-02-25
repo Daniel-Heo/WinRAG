@@ -73,7 +73,7 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
     }
     //cdb.Save("cluster_db.bin"); // 만들어진 DB 데이터를 저장한다.
 
-    // 검색할 텍스트 입력 받기
+    // 텍스트 입력 받아 검색 결과 출력
     std::string search_text;
     std::string res;
     while (1) {
