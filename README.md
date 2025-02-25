@@ -86,8 +86,3 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
     }
 ```
 
-## 테스트
- - test_main.cpp : 공통으로 테스트 진행중
-
-## TODO List
- - Similarity DB에 입력하는 방식을 datasets로 규칙성을 가지고 해당 pdf나 txt파일을 잘라내서 자동적으로 넣을 수 있는 라이브러리 개발
