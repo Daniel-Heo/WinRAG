@@ -214,6 +214,7 @@ std::vector<std::pair<const WeightEntry*, float>> ClusterDB::FindNearestFull(con
     std::vector<std::pair<float, const WeightEntry*>> similarities;
 
     // 모든 클러스터의 모든 데이터 순회
+	printf("clusters.size(): %d\n", clusters.size()); 
     for (const auto& cluster : clusters) {
         for (const auto& entry : cluster.entries) {
             float similarity = CosineSimilarity(normalizedQuery, entry.vector, vectorDim);
@@ -422,6 +423,48 @@ int test_cluster_db() {
 
     // 저장
 	cdb.Save("cluster_db.bin");
+
+    return 0;
+}
+
+// 정확성 테스트
+int test_cluster_db_accuracy() {
+    constexpr int VECTOR_DIM = 3;  // 벡터 차원 설정
+
+    ClusterDB cdb(VECTOR_DIM);
+
+    // 시간 측정
+    auto start = std::chrono::high_resolution_clock::now();
+	std::vector<float> vec1 = { 1.0f, 1.0f, 1.0f };
+    std::vector<float> vec2 = { 1.0f, 1.0f, -1.0f };
+    std::vector<float> vec3 = { 1.0f, -1.0f, 1.0f };
+    std::vector<float> vec4 = { 1.0f, -1.0f, -1.0f };
+    std::vector<float> vec5 = { 1.0f, -1.0f,  0.0f };
+    std::vector<float> vec6 = { 1.0f, 1.0f,  0.0f };
+
+    cdb.Add(vec1, "C:\\test\\file.txt");
+    cdb.Add(vec2, "C:\\test\\file.txt");
+    cdb.Add(vec3, "C:\\test\\file.txt");
+    cdb.Add(vec4, "C:\\test\\file.txt");
+    cdb.Add(vec5, "C:\\test\\file.txt");
+    cdb.Add(vec6, "C:\\test\\file.txt");
+
+    //cdb.Delete(1);
+    printf("SDB Count: %d\n", cdb.GetCount());
+
+    // 쿼리 생성 및 검색 수행
+    std::vector<float> queryVec(VECTOR_DIM);
+	queryVec = { 1.0f, 1.0f, -1.0f };
+
+    // 검색
+    std::vector<std::pair<const WeightEntry*, float>> results;
+    results = cdb.FindNearestFull(queryVec, 1); // RunKMeansClustering 수행
+
+    // 결과 출력
+    for (auto& res : results) {
+        printf("ID: %d, 유사도: %.3f, 파일경로: %s\n",
+            res.first->id, res.second, res.first->filePath);
+    }
 
     return 0;
 }
