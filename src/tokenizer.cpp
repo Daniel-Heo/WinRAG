@@ -19,15 +19,29 @@
 using json = nlohmann::json;
 using namespace std;
 
-// TrieNode 초기화
+/****************************************************************
+* Function Name: TrieNode (Constructor)
+* Description: TrieNode 기본 생성자
+* Parameters: 없음
+****************************************************************/
 Tokenizer::TrieNode::TrieNode() : isEnd(false), id(-1) { }
 
-// MemoryPool 초기화
+/****************************************************************
+* Function Name: Tokenizer::MemoryPool (Constructor)
+* Description: 메모리 풀 초기화
+* Parameters:
+*   - initialSize: 초기 할당할 노드 개수 (size_t)
+****************************************************************/
 Tokenizer::MemoryPool::MemoryPool(size_t initialSize) : index(0) {
     pool.resize(initialSize); // resize로 미리 공간 확보만 함 (초기화 없음)
 }
 
-// MemoryPool에서 노드 할당
+/****************************************************************
+* Function Name: Tokenizer::MemoryPool::allocate
+* Description: 메모리 풀에서 새 Trie 노드를 할당
+* Parameters: 없음
+* Return: 할당된 TrieNode 포인터
+****************************************************************/
 Tokenizer::TrieNode* Tokenizer::MemoryPool::allocate() {
     if (index >= pool.size()) {
         size_t newSize = pool.size() * 2;
@@ -47,16 +61,27 @@ Tokenizer::TrieNode* Tokenizer::MemoryPool::allocate() {
     return node;
 }
 
-// 생성자
+/****************************************************************
+* Function Name: Tokenizer (Constructor)
+* Description: Tokenizer 기본 생성자
+****************************************************************/
 Tokenizer::Tokenizer() : nodePool(nullptr), root(nullptr) {
 }
 
-// 소멸자 (메모리 해제)
+/****************************************************************
+* Function Name: ~Tokenizer (Destructor)
+* Description: 동적 할당된 메모리 해제
+****************************************************************/
 Tokenizer::~Tokenizer() {
     delete nodePool;
 }
 
-// Tokenizer JSON 로드 및 Trie 초기화
+/****************************************************************
+* Function Name: loadTokenizer
+* Description: JSON 형식의 tokenizer 모델을 로드하여 Trie를 구성
+* Parameters: 토크나이저 모델 파일명 (const std::string&)
+* Return: 
+****************************************************************/
 void Tokenizer::loadTokenizer(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
@@ -92,7 +117,13 @@ void Tokenizer::loadTokenizer(const std::string& filename) {
 	//printf("Tokenizer 로드 완료\n");
 }
 
-// 가장 긴 매칭된 토큰 검색
+// 
+/****************************************************************
+* Function Name: searchLastMatchedToken
+* Description: 가장 긴 매칭된 토큰 검색
+* Parameters: 단어    (const std::string&)
+* Return: 가장 긴 매칭된 토큰과 ID를 반환 (std::pair<std::string, int>)
+****************************************************************/
 std::pair<std::string, int> Tokenizer::searchLastMatchedToken(const std::string& word) const {
     TrieNode* current = root;
     int lastMatchedId = -1;
@@ -116,7 +147,12 @@ std::pair<std::string, int> Tokenizer::searchLastMatchedToken(const std::string&
         : std::make_pair("", -1);
 }
 
-// 토큰화 수행 (Trie 기반 Greedy Matching)
+/****************************************************************
+* Function Name: tokenize
+* Description: 입력 문장을 토큰화하여 토큰 목록을 반환 (Trie 기반 Greedy Matching)
+* Parameters: 입력 문장 (const std::string&)
+* Return: 토큰 목록 (std::vector<Token>)
+* ***************************************************************/
 std::vector<Token> Tokenizer::tokenize(const std::string& text) const {
     std::vector<Token> tokens;
     std::istringstream iss(text);
@@ -159,6 +195,7 @@ std::vector<Token> Tokenizer::tokenize(const std::string& text) const {
     return tokens;
 }
 
+// 토크나이저 테스트 함수
 int test_tokenizer() {
     Tokenizer tokenizer;
     tokenizer.loadTokenizer("tokenizer.json");

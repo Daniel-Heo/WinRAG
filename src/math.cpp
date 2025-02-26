@@ -20,7 +20,6 @@
 *   - vec: 노멀라이즈할 벡터 포인터
 *   - size: 벡터 크기
 * Return: 없음
-* Date: 2025-02-21
 ****************************************************************/
 void NormalizeVector(float* vec, size_t size) {
     if (!vec) return;  // nullptr 체크

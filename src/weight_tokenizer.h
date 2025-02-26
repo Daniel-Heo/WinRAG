@@ -17,12 +17,14 @@
 #include "math.h"
 #include <memory>
 
-std::string to_string(const std::vector<float>& vec);
-std::string to_string(const std::vector<std::vector<float>>& vec2d);
+std::string to_string(const std::vector<float>& vec); // 1D 벡터 string으로 변환
+std::string to_string(const std::vector<std::vector<float>>& vec2d); // 2D 벡터 string으로 변환
 
-int test_weight_tokenizer();
-
-// WeightTokenizer 클래스
+/****************************************************************
+* Class Name: WeightTokenizer
+* Description: WeightLoader와 Tokenizer를 결합하여
+*              입력 텍스트의 평균 가중치 벡터를 계산하는 클래스
+****************************************************************/
 class WeightTokenizer {
 private:
     std::unique_ptr<WeightLoader> weights_;
@@ -36,3 +38,5 @@ public:
     std::vector<float> GetWeight(const std::string& text);
 };
 
+// 테스트 함수
+int test_weight_tokenizer();

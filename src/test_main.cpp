@@ -19,6 +19,7 @@
 #include "text_cluster_db.h"
 #include "weight_tokenizer.h"
 
+// 16진수 문자열 출력
 void printHexString(const std::string& str) {
     char temp[1024] = { 0 }; // 문자열을 저장할 배열
     size_t length = str.copy(temp, sizeof(temp) - 1); // 문자열 복사 (초과 방지)
@@ -38,6 +39,7 @@ void printHexString(const std::string& str) {
     std::cout << std::endl;
 }
 
+// 콘솔  입력을 UTF-8로 읽어오는 함수
 std::string readUtf8FromConsole() {
     // 1. 콘솔 입력을 UTF-16으로 받기 위한 설정
     constexpr DWORD BUFFER_SIZE = 256;
@@ -74,6 +76,7 @@ std::string readUtf8FromConsole() {
     return std::string(utf8Buffer.data()); // 변환된 UTF-8 문자열 반환
 }
 
+// WinRAG 예제
 int test_main() {
     constexpr int VECTOR_DIM = 768;  // 벡터 차원 설정
 

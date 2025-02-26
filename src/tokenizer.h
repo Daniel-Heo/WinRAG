@@ -35,12 +35,20 @@
 // Trie 검색 방식 선택 : 압축방식 Trie(Radix Trie)가 필요하면 적용을 고려해보자.
 #define TRIE_SEARCH_TYPE 1 // 0: Low memory,low speed  1: High memory,high speed 
 
-// 토큰 구조체
+/****************************************************************
+* Struct Name: Token
+* Description: 토큰의 키(문자열)와 ID(정수)를 저장하는 구조체
+****************************************************************/
 struct Token {
     std::string key;   // 문자열
     int id;            // 정수
 };
 
+/****************************************************************
+* Class Name: Tokenizer
+* Description: SentencePiece 기반의 토크나이저 클래스
+*              Trie 구조를 사용하여 검색 최적화
+****************************************************************/
 class Tokenizer {
 private:
     struct TrieNode {

@@ -18,6 +18,10 @@
 #include <tuple>
 #include <iostream>
 
+/****************************************************************
+* Class Name: DataLoader
+* Description: CSV 파일을 로드하여 데이터를 저장하고 제공하는 클래스
+****************************************************************/
 class DataLoader {
 private:
     std::vector<std::tuple<std::string, std::string, std::string>> data;
@@ -37,4 +41,5 @@ public:
     std::tuple<std::string, std::string, std::string> get(size_t row_num) const;
 };
 
+// Test function
 int test_data_loader();

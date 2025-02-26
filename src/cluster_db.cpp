@@ -13,9 +13,16 @@
 *******************************************************************************/
 #include "cluster_db.h"
 
-// RunKMeansClustering에서 사용하는 SIMD로 평균 벡터 계산
-//   행방향 처리 ( 메모리 연속성 높여서 처리 속도 향상 ) - 차원수가 많을수록 효과적
-// SIMD로 평균 벡터 계산 (SIMD 미사용 환경도 지원)
+/****************************************************************
+* Function Name: MeanVectorSIMD
+* Description: SIMD를 활용하여 여러 개의 벡터 평균을 계산
+*                      (SIMD 미사용 환경도 지원)
+*                      행방향 처리 ( 메모리 연속성 높여서 처리 속도 향상 ) - 차원수가 많을수록 효과적
+* Parameters:
+*   - entries: 입력 벡터 리스트
+*   - vectorDim: 벡터의 차원 수
+* Return: 평균 벡터 (std::vector<float>)
+****************************************************************/
 std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_t vectorDim) {
     size_t entryCount = entries.size();
     std::vector<float> mean(vectorDim, 0.0f);
@@ -84,7 +91,15 @@ std::vector<float> MeanVectorSIMD(const std::vector<WeightEntry>& entries, size_
     return mean;
 }
 
-// 클러스터DB 생성자
+// 
+/****************************************************************
+* Function Name: ClusterDB
+* Description: 클러스터DB 생성자
+* Parameters:
+*   - vec: 추가할 벡터 데이터
+*   - filePath: 데이터와 연결된 파일 경로
+* Return: 추가 성공 여부 (bool)
+****************************************************************/
 ClusterDB::ClusterDB(int dimension)
     : vectorDim(dimension), numClusters(CLUSTER_COUNT), isDataChanged(false), currentId(0) {
     clusters.resize(numClusters);
@@ -93,7 +108,14 @@ ClusterDB::ClusterDB(int dimension)
     }
 }
 
-// 데이터 추가
+/****************************************************************
+* Function Name: Add
+* Description: 새로운 데이터 벡터를 추가하고 적절한 클러스터에 배정
+* Parameters:
+*   - vec: 추가할 벡터 데이터
+*   - filePath: 데이터와 연결된 파일 경로
+* Return: 추가 성공 여부 (bool)
+****************************************************************/
 bool ClusterDB::Add(const std::vector<float>& vec, const char* filePath) {
     if (vec.size() != vectorDim) return false;
 
@@ -113,7 +135,12 @@ bool ClusterDB::Add(const std::vector<float>& vec, const char* filePath) {
     return true;
 }
 
-// K-means 클러스터링 알고리즘 실행
+/****************************************************************
+* Function Name: RunKMeansClustering
+* Description: K-means 알고리즘을 사용하여 클러스터링 실행
+* Parameters: 없음
+* Return: 없음
+****************************************************************/
 void ClusterDB::RunKMeansClustering(void) {
     // 초기 centroid 무작위 초기화 (필수!)
     std::mt19937 gen(std::random_device{}());
@@ -151,7 +178,13 @@ void ClusterDB::RunKMeansClustering(void) {
     }
 }
 
-// 가장 가까운 클러스터 찾기
+// 
+/****************************************************************
+* Function Name: GetNearestClusterIndex
+* Description: 가장 가까운 클러스터 찾기
+* Parameters: vec - 입력 벡터
+* Return: 가까운 클러스터 인덱스 (int)
+****************************************************************/
 int ClusterDB::GetNearestClusterIndex(const float* vec) {
     float maxSim = -1.0f;
     int nearestIndex = 0;
@@ -165,7 +198,14 @@ int ClusterDB::GetNearestClusterIndex(const float* vec) {
     return nearestIndex;
 }
 
-// 클러스터 기반 검색
+/****************************************************************
+* Function Name: FindNearestCluster
+* Description: 클러스터 기반으로 가장 유사한 벡터를 검색
+* Parameters:
+*   - queryVec: 검색할 벡터
+*   - k: 찾을 데이터 개수
+* Return: 가장 유사한 데이터 리스트 (std::vector<std::pair<const WeightEntry*, float>>)
+****************************************************************/
 std::vector<std::pair<const WeightEntry*, float>> ClusterDB::FindNearestCluster(const std::vector<float>& queryVec, int k) {
     if (queryVec.size() != vectorDim) return {};
 
@@ -202,7 +242,14 @@ std::vector<std::pair<const WeightEntry*, float>> ClusterDB::FindNearestCluster(
     return results;
 }
 
-// 전체 데이터를 검색하여 유사도가 가장 높은 k개의 벡터를 찾음 (Full Scan 방식)
+/****************************************************************
+* Function Name: FindNearestFull
+* Description: 전체 데이터에서 가장 유사한 벡터를 검색 (Full Scan)
+* Parameters:
+*   - queryVec: 검색할 벡터
+*   - k: 찾을 데이터 개수
+* Return: 가장 유사한 데이터 리스트 (std::vector<std::pair<const WeightEntry*, float>>)
+****************************************************************/
 std::vector<std::pair<const WeightEntry*, float>> ClusterDB::FindNearestFull(const std::vector<float>& queryVec, int k) {
     if (queryVec.size() != vectorDim) return {};
 
@@ -239,7 +286,13 @@ std::vector<std::pair<const WeightEntry*, float>> ClusterDB::FindNearestFull(con
     return results;
 }
 
-// 전체 클러스터 DB를 파일로 저장하는 함수
+/****************************************************************
+* Function Name: Save
+* Description: 현재 클러스터 데이터를 파일로 저장
+* Parameters:
+*   - filename: 저장할 파일 경로
+* Return: 저장 성공 여부 (bool)
+****************************************************************/
 bool ClusterDB::Save(const char* filename) {
     std::ofstream outFile(filename, std::ios::binary);
     if (!outFile) return false;
@@ -264,7 +317,13 @@ bool ClusterDB::Save(const char* filename) {
     return true;
 }
 
-// 전체 클러스터 DB를 파일에서 불러오는 함수
+/****************************************************************
+* Function Name: Load
+* Description: 저장된 클러스터 데이터를 파일에서 로드
+* Parameters:
+*   - filename: 로드할 파일 경로
+* Return: 로드 성공 여부 (bool)
+****************************************************************/
 bool ClusterDB::Load(const char* filename) {
     std::ifstream inFile(filename, std::ios::binary);
     if (!inFile) return false;
@@ -308,7 +367,13 @@ bool ClusterDB::Load(const char* filename) {
     return true;
 }
 
-// 주어진 ID를 가진 데이터를 삭제하는 함수
+/****************************************************************
+* Function Name: Delete
+* Description: 주어진 ID를 가진 데이터를 삭제하는 함수
+* Parameters:
+*   - int id : 삭제할 id
+* Return: 로드 성공 여부 (bool)
+****************************************************************/
 bool ClusterDB::Delete(int id) {
     // 모든 클러스터 전체를 돌면서 데이터 삭제
     for (auto& cluster : clusters) {
@@ -325,20 +390,30 @@ bool ClusterDB::Delete(int id) {
     return false; // 데이터 없으면 false 반환
 }
 
-
-// 전체 데이터 개수
+/****************************************************************
+* Function Name: GetCount
+* Description: 전체 데이터 개수 반환
+* Parameters:
+* Return: 전체 데이터 개수 (size_t)
+****************************************************************/
 size_t ClusterDB::GetCount() {
     size_t cnt = 0;
     for (const auto& c : clusters) cnt += c.entries.size();
     return cnt;
 }
 
+/****************************************************************
+* Function Name: GetCurrentId
+* Description: 현재 새로 추가될 ID 반환
+* Parameters:
+* Return: 추가될 ID (int)
+****************************************************************/
 int ClusterDB::GetCurrentId() {
 	return currentId;
 }
 
 
-// 테스트 코드
+// 매트릭스 평균 계산 테스트
 int test_mean() {
     constexpr int rows = 16;
     constexpr int cols = 8;

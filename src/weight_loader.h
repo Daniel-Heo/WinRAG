@@ -21,7 +21,10 @@
 #include <regex>
 #include <cmath>
 
-// 가중치 데이터 로드 클래스
+/****************************************************************
+* Class Name: WeightLoader
+* Description: Numpy (.npy) 형식의 가중치 데이터를 로드하고 저장하는 클래스
+****************************************************************/
 class WeightLoader {
 private:
     std::vector<float> weights;  // 가중치 저장 (float32 데이터)

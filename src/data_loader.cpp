@@ -13,7 +13,13 @@
 *******************************************************************************/
 #include "data_loader.h"
 
-// CSV 한 줄을 파싱하는 함수
+/****************************************************************
+* Function Name: parseCSVLine
+* Description: CSV 한 줄을 파싱하여 필드별로 분리
+* Parameters:
+*   - line: CSV의 한 줄 문자열
+* Return: 파싱된 문자열 리스트 (std::vector<std::string>)
+****************************************************************/
 std::vector<std::string> DataLoader::parseCSVLine(const std::string& line) {
     std::vector<std::string> row;
     std::string field;
@@ -38,7 +44,13 @@ std::vector<std::string> DataLoader::parseCSVLine(const std::string& line) {
     return row;
 }
 
-// CSV 파일을 로드하는 함수
+/****************************************************************
+* Function Name: loadCSV
+* Description: CSV 파일을 로드하여 데이터를 저장
+* Parameters:
+*   - filename: CSV 파일 경로 (wstring)
+* Return: 파일 로드 성공 여부 (bool)
+****************************************************************/
 bool DataLoader::loadCSV(const std::wstring& filename) {
     // 파일 핸들 생성
     HANDLE hFile = CreateFileW(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
@@ -91,12 +103,23 @@ bool DataLoader::loadCSV(const std::wstring& filename) {
     return true;
 }
 
-// 저장된 데이터의 크기 반환
+/****************************************************************
+* Function Name: Size
+* Description: 저장된 데이터의 행과 열 개수를 반환
+* Parameters: 없음
+* Return: 데이터 행(row)과 열(column) 개수 (std::pair<size_t, size_t>)
+****************************************************************/
 std::pair<size_t, size_t> DataLoader::Size() const {
     return { data.size(), columnCount };
 }
 
-// 특정 row 데이터를 반환
+/****************************************************************
+* Function Name: get
+* Description: 특정 행의 데이터를 반환
+* Parameters:
+*   - row_num: 가져올 데이터의 행 번호 (size_t)
+* Return: 해당 행의 데이터 (std::tuple<std::string, std::string, std::string>)
+****************************************************************/
 std::tuple<std::string, std::string, std::string> DataLoader::get(size_t row_num) const {
     if (row_num >= data.size()) {
         throw std::out_of_range("인덱스 범위를 초과했습니다.");

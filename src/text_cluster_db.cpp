@@ -13,11 +13,26 @@
 *******************************************************************************/
 #include "text_cluster_db.h"
 
+/****************************************************************
+* Function Name: TextClusterDB
+* Description: 생성자 - 저장 경로와 벡터 차원을 설정
+* Parameters:
+*   - vectorDim: 벡터의 차원 수
+*   - relativePath: 텍스트 파일 저장 경로
+****************************************************************/
 TextClusterDB::TextClusterDB(int vectorDim, const char* relativePath)
     : clusterDB(vectorDim) {
     strcpy_s(savePath, relativePath);
 }
 
+/****************************************************************
+* Function Name: InsertText
+* Description: 텍스트 데이터를 벡터와 함께 저장
+* Parameters:
+*   - vec: 저장할 벡터 데이터
+*   - str: 저장할 텍스트 데이터
+* Return: 저장 성공 여부 (bool)
+****************************************************************/
 bool TextClusterDB::InsertText(const std::vector<float>& vec, const std::string& str) {
     namespace fs = std::filesystem;
     std::error_code ec;
@@ -58,6 +73,14 @@ bool TextClusterDB::InsertText(const std::vector<float>& vec, const std::string&
     return true;
 }
 
+/****************************************************************
+* Function Name: SearchText
+* Description: 유사한 텍스트 데이터를 검색
+* Parameters:
+*   - vec: 검색할 벡터 데이터
+*   - k: 검색할 개수
+* Return: 검색된 텍스트 문자열 (std::string)
+****************************************************************/
 std::string TextClusterDB::SearchText(const std::vector<float>& vec, int k) {
 	std::string result;
 	std::vector<std::pair<const WeightEntry*, float>> entries = clusterDB.FindNearestFull(vec, k);
@@ -75,6 +98,7 @@ std::string TextClusterDB::SearchText(const std::vector<float>& vec, int k) {
 	return result;
 }
 
+// Test function
 int test_text_cluster_db() {
     constexpr int VECTOR_DIM = 2048;  // 벡터 차원 설정
     constexpr int DATA_COUNT = 10000; // 데이터 개수

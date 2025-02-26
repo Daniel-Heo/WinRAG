@@ -13,7 +13,12 @@
 *******************************************************************************/
 #include "weight_loader.h"
 
-// float16 → float32 변환 함수 (private)
+/****************************************************************
+* Function Name: float16_to_float32
+* Description: float16 데이터를 float32로 변환
+* Parameters: float16 데이터 (uint16_t)
+* Return: 변환된 float32 데이터 (float)
+* ***************************************************************/
 float WeightLoader::float16_to_float32(uint16_t h) {
     uint16_t sign = (h & 0x8000) >> 15;
     uint16_t exponent = (h & 0x7C00) >> 10;
@@ -33,7 +38,11 @@ float WeightLoader::float16_to_float32(uint16_t h) {
     return sign ? -value : value;
 }
 
-// 생성자: 가중치 파일 로드
+/**************************************************************
+* Function Name: WeightLoader (Constructor)
+* Description: 가중치 파일 로드
+* Parameters: 파일명 (const std::string&)
+* **************************************************************/
 WeightLoader::WeightLoader(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file.is_open()) {
@@ -98,7 +107,12 @@ WeightLoader::WeightLoader(const std::string& filename) {
     file.close();
 }
 
-// 특정 위치(row, col)의 가중치 반환
+/****************************************************************
+* Function Name: get (row, col) - 사용하지 않는다. 테스트용
+* Description: 특정 위치(row, col)의 가중치를 반환
+* Parameters: 행 인덱스 (int), 열 인덱스 (int)
+* Return: 가중치 값 (float)
+****************************************************************/
 float WeightLoader::get(int row_idx, int col_idx) const {
     if (row_idx < 0 || row_idx >= rows || col_idx < 0 || col_idx >= cols) {
         throw std::out_of_range("잘못된 인덱스입니다.");
@@ -106,6 +120,12 @@ float WeightLoader::get(int row_idx, int col_idx) const {
     return weights[row_idx * cols + col_idx];
 }
 
+/***************************************************************
+* Function Name: get (row)
+* Description: 특정 행의 가중치를 반환
+* Parameters: 행 인덱스 (int)
+* Return: 가중치 값 목록 (std::vector<float>)
+* **************************************************************/
 std::vector<float> WeightLoader::get(int row_idx) const {
     if (row_idx < 0 || row_idx >= rows ) {
         throw std::out_of_range("잘못된 인덱스입니다.");
@@ -119,22 +139,34 @@ std::vector<float> WeightLoader::get(int row_idx) const {
 }
 
 
-// 행 개수 반환
+/***************************************************************
+* Function Name: get_rows
+* Description: 행 개수 반환
+* Return: 행 개수 (int)
+* **************************************************************/
 int WeightLoader::get_rows() const {
     return rows;
 }
 
-// 열 개수 반환
+/***************************************************************
+* Function Name: get_cols
+* Description: 열 개수 반환
+* Return: 열 개수 (int)
+* **************************************************************/
 int WeightLoader::get_cols() const {
     return cols;
 }
 
-// 가중치 데이터 개수 반환
+/***************************************************************
+* Function Name: get_size
+* Description: 가중치 데이터 개수 반환
+* Return: 가중치 데이터 개수 (int)
+* **************************************************************/
 int WeightLoader::get_size() const {
 	return static_cast<int>(weights.size());
 }
 
-
+// Test function
 int test_weights() {
     try {
         WeightLoader loader("embedding_weights.npy");

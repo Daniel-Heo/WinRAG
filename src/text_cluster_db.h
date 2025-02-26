@@ -17,6 +17,11 @@
 #include <fstream>
 #include <sstream>
 
+/****************************************************************
+* Class Name: TextClusterDB
+* Description: ClusterDB를 감싸는 래퍼 클래스.
+*              텍스트를 파일로 저장하고, 유사도 기반 검색 기능 제공.
+****************************************************************/
 class TextClusterDB {
 private:
     ClusterDB clusterDB; // 내부 DB 객체 소유
@@ -37,4 +42,5 @@ public:
     // ClusterDB의 추가 기능 필요하면 래핑해서 노출
 };
 
+// Test function
 int test_text_cluster_db();

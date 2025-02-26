@@ -13,7 +13,13 @@
 *******************************************************************************/
 #include "weight_tokenizer.h"
 
-// 1D 벡터 출력 함수
+/****************************************************************
+* Function Name: to_string (1D vector)
+* Description: 1D 벡터를 문자열로 변환
+* Parameters:
+*   - vec: 변환할 벡터 (std::vector<float>)
+* Return: 변환된 문자열 (std::string)
+****************************************************************/
 std::string to_string(const std::vector<float>& vec) {
     std::ostringstream oss;
     oss << "[";
@@ -25,7 +31,13 @@ std::string to_string(const std::vector<float>& vec) {
     return oss.str();
 }
 
-// 2D 벡터 출력 함수
+/****************************************************************
+* Function Name: to_string (2D vector)
+* Description: 2D 벡터를 문자열로 변환
+* Parameters:
+*   - vec2d: 변환할 2D 벡터 (std::vector<std::vector<float>>)
+* Return: 변환된 문자열 (std::string)
+****************************************************************/
 std::string to_string(const std::vector<std::vector<float>>& vec2d) {
     std::ostringstream oss;
     oss << "[";
@@ -37,7 +49,13 @@ std::string to_string(const std::vector<std::vector<float>>& vec2d) {
     return oss.str();
 }
 
-// 생성자 구현
+/****************************************************************
+* Function Name: WeightTokenizer (Constructor)
+* Description: 가중치 데이터와 토크나이저 데이터를 로드하는 생성자
+* Parameters:
+*   - weight_filename: 가중치 데이터 파일 경로 (std::string)
+*   - tokenizer_filename: 토크나이저 파일 경로 (std::string)
+****************************************************************/
 WeightTokenizer::WeightTokenizer(const std::string& weight_filename, const std::string& tokenizer_filename)
 {
     try {
@@ -54,7 +72,13 @@ WeightTokenizer::WeightTokenizer(const std::string& weight_filename, const std::
     }
 }
 
-// 텍스트를 입력받아 가중치의 평균을 반환
+/****************************************************************
+* Function Name: GetWeight
+* Description: 입력된 텍스트의 평균 가중치 벡터를 반환
+* Parameters:
+*   - text: 분석할 텍스트 (std::string)
+* Return: 평균 가중치 벡터 (std::vector<float>)
+****************************************************************/
 std::vector<float> WeightTokenizer::GetWeight(const std::string& text)
 {
     // 1. 입력 텍스트를 토큰화
@@ -84,6 +108,7 @@ std::vector<float> WeightTokenizer::GetWeight(const std::string& text)
     return MeanVector(token_weights);
 }
 
+// 테스트 함수
 int test_weight_tokenizer() {
     // 클래스 초기화
     WeightTokenizer weightTokenizer("embedding_weights.npy", "tokenizer.json");
