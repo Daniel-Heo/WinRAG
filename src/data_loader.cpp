@@ -1,24 +1,26 @@
 /*******************************************************************************
-    ÆÄ     ÀÏ     ¸í : data_loader.cpp
-    ÇÁ·Î±×·¥¸íÄª :  µ¥ÀÌÅÍ ÆÄÀÏ ·Î´õ (CSV)
-    ÇÁ·Î±×·¥¿ëµµ : CSV ÆÄÀÏÀ» ·ÎµåÇÏ¿© µ¥ÀÌÅÍ¸¦ ÀĞ¾î¿À´Â Å¬·¡½º
-    Âü  °í  »ç  Ç×  :
+    íŒŒ     ì¼     ëª… : data_loader.cpp
+    í”„ë¡œê·¸ë¨ëª…ì¹­ :  ë°ì´í„° íŒŒì¼ ë¡œë” (CSV)
+    í”„ë¡œê·¸ë¨ìš©ë„ : CSV íŒŒì¼ì„ ë¡œë“œí•˜ì—¬ ë°ì´í„°ë¥¼ ì½ì–´ì˜¤ëŠ” í´ë˜ìŠ¤
+    ì°¸  ê³   ì‚¬  í•­  :
 
-    ÀÛ    ¼º    ÀÚ : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
-    ¶ó ÀÌ ¼¾ ½º  : MIT License
+    ì‘    ì„±    ì : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    ë¼ ì´ ì„¼ ìŠ¤  : MIT License
     ----------------------------------------------------------------------------
-    ¼öÁ¤ÀÏÀÚ    ¼öÁ¤ÀÚ      ¼öÁ¤³»¿ë
+    ìˆ˜ì •ì¼ì    ìˆ˜ì •ì      ìˆ˜ì •ë‚´ìš©
     =========== =========== ====================================================
-    2025.2.22   Daniel Heo  ÃÖÃÊ »ı¼º
+    2025.2.22   Daniel Heo  ìµœì´ˆ ìƒì„±
 *******************************************************************************/
 #include "data_loader.h"
 
+using json = nlohmann::json;
+
 /****************************************************************
 * Function Name: parseCSVLine
-* Description: CSV ÇÑ ÁÙÀ» ÆÄ½ÌÇÏ¿© ÇÊµåº°·Î ºĞ¸®
+* Description: CSV í•œ ì¤„ì„ íŒŒì‹±í•˜ì—¬ í•„ë“œë³„ë¡œ ë¶„ë¦¬
 * Parameters:
-*   - line: CSVÀÇ ÇÑ ÁÙ ¹®ÀÚ¿­
-* Return: ÆÄ½ÌµÈ ¹®ÀÚ¿­ ¸®½ºÆ® (std::vector<std::string>)
+*   - line: CSVì˜ í•œ ì¤„ ë¬¸ìì—´
+* Return: íŒŒì‹±ëœ ë¬¸ìì—´ ë¦¬ìŠ¤íŠ¸ (std::vector<std::string>)
 ****************************************************************/
 std::vector<std::string> DataLoader::parseCSVLine(const std::string& line) {
     std::vector<std::string> row;
@@ -39,34 +41,54 @@ std::vector<std::string> DataLoader::parseCSVLine(const std::string& line) {
             field += c;
         }
     }
-    row.push_back(field);  // ¸¶Áö¸· ÇÊµå Ãß°¡
+    row.push_back(field);  // ë§ˆì§€ë§‰ í•„ë“œ ì¶”ê°€
 
     return row;
 }
 
 /****************************************************************
-* Function Name: loadCSV
-* Description: CSV ÆÄÀÏÀ» ·ÎµåÇÏ¿© µ¥ÀÌÅÍ¸¦ ÀúÀå
+* Function Name: extractKeyOrder
+* Description: JSONL íŒŒì¼ì—ì„œ ì¸ì ìˆœì„œë¥¼ ì¶”ì¶œ
 * Parameters:
-*   - filename: CSV ÆÄÀÏ °æ·Î (wstring)
-* Return: ÆÄÀÏ ·Îµå ¼º°ø ¿©ºÎ (bool)
+*   - jsonString: JSONL íŒŒì¼ì˜ í•œ ì¤„ ë¬¸ìì—´
+* Return: í‚¤ ìˆœì„œ ë¦¬ìŠ¤íŠ¸ (std::vector<std::string>)
+****************************************************************/
+std::vector<std::string> DataLoader::extractKeyOrder(const std::string& jsonString) {
+    std::vector<std::string> keys;
+    std::regex keyPattern(R"(\"([^\"]+)\":)"); // í‚¤ë¥¼ ì°¾ê¸° ìœ„í•œ ì •ê·œ í‘œí˜„ì‹
+    std::sregex_iterator it(jsonString.begin(), jsonString.end(), keyPattern);
+    std::sregex_iterator end;
+
+    while (it != end) {
+        keys.push_back(it->str(1)); // ì²« ë²ˆì§¸ ìº¡ì²˜ ê·¸ë£¹(í‚¤ ì´ë¦„)ì„ ì¶”ê°€
+        ++it;
+    }
+    return keys;
+}
+
+/****************************************************************
+* Function Name: loadCSV
+* Description: CSV íŒŒì¼ì„ ë¡œë“œí•˜ì—¬ ë°ì´í„°ë¥¼ ì €ì¥
+* Parameters:
+*   - filename: CSV íŒŒì¼ ê²½ë¡œ (wstring)
+* Return: íŒŒì¼ ë¡œë“œ ì„±ê³µ ì—¬ë¶€ (bool)
 ****************************************************************/
 bool DataLoader::loadCSV(const std::wstring& filename) {
-    // ÆÄÀÏ ÇÚµé »ı¼º
+    // íŒŒì¼ í•¸ë“¤ ìƒì„±
     HANDLE hFile = CreateFileW(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (hFile == INVALID_HANDLE_VALUE) {
-        std::wcerr << L"ÆÄÀÏÀ» ¿­ ¼ö ¾ø½À´Ï´Ù: " << filename << std::endl;
+        std::wcerr << L"íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: " << filename << std::endl;
         return false;
     }
 
-    // ÆÄÀÏ Å©±â È®ÀÎ
+    // íŒŒì¼ í¬ê¸° í™•ì¸
     DWORD fileSize = GetFileSize(hFile, NULL);
     if (fileSize == INVALID_FILE_SIZE) {
         CloseHandle(hFile);
         return false;
     }
 
-    // ¹öÆÛ ÇÒ´ç ¹× ÆÄÀÏ ÀĞ±â
+    // ë²„í¼ í• ë‹¹ ë° íŒŒì¼ ì½ê¸°
     std::vector<char> buffer(fileSize + 1, '\0');
     DWORD bytesRead;
     if (!ReadFile(hFile, buffer.data(), fileSize, &bytesRead, NULL)) {
@@ -75,22 +97,22 @@ bool DataLoader::loadCSV(const std::wstring& filename) {
     }
     CloseHandle(hFile);
 
-    // ÆÄÀÏ ³»¿ëÀ» ¹®ÀÚ¿­·Î º¯È¯
+    // íŒŒì¼ ë‚´ìš©ì„ ë¬¸ìì—´ë¡œ ë³€í™˜
     std::string content(buffer.begin(), buffer.end());
 
-    // Çà ´ÜÀ§·Î ³ª´©±â
+    // í–‰ ë‹¨ìœ„ë¡œ ë‚˜ëˆ„ê¸°
     size_t start = 0, end = 0;
     bool isHeader = true;
     while ((end = content.find('\n', start)) != std::string::npos) {
         std::string line = content.substr(start, end - start);
         if (!line.empty() && line.back() == '\r') {
-            line.pop_back();  // CRLF Ã³¸®
+            line.pop_back();  // CRLF ì²˜ë¦¬
         }
         start = end + 1;
 
         auto row = parseCSVLine(line);
         if (isHeader) {
-            columnCount = row.size(); // Ã¹ ¹øÂ° Çà(Çì´õ)ÀÇ ÄÃ·³ °³¼ö¸¦ ÀúÀå
+            columnCount = row.size(); // ì²« ë²ˆì§¸ í–‰(í—¤ë”)ì˜ ì»¬ëŸ¼ ê°œìˆ˜ë¥¼ ì €ì¥
             isHeader = false;
             continue;
         }
@@ -104,10 +126,116 @@ bool DataLoader::loadCSV(const std::wstring& filename) {
 }
 
 /****************************************************************
+* Function Name: loadJSONL
+* Description: JSONL íŒŒì¼ì„ ë¡œë“œí•˜ì—¬ ë°ì´í„°ë¥¼ ì €ì¥
+*              - ì²« ë²ˆì§¸ í–‰ì˜ í˜•ì‹(ë°°ì—´ ë˜ëŠ” ê°ì²´) ê¸°ì¤€ìœ¼ë¡œ ë‚˜ë¨¸ì§€ í–‰ì„ íŒŒì‹±
+*              - ì²« í–‰ì´ ë°°ì—´ì´ë©´ ë°°ì—´ë§Œ, ê°ì²´ì´ë©´ ê°ì²´ë§Œ ì²˜ë¦¬
+*              - í•„ë“œ ê°œìˆ˜ê°€ ë¶€ì¡±í•˜ë©´ "N/A"ë¡œ ì±„ì›€
+****************************************************************/
+bool DataLoader::loadJSONL(const std::wstring& filename) {
+    HANDLE hFile = CreateFileW(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        std::wcerr << L"íŒŒì¼ì„ ì—´ ìˆ˜ ì—†ìŠµë‹ˆë‹¤: " << filename << std::endl;
+        return false;
+    }
+
+    DWORD fileSize = GetFileSize(hFile, NULL);
+    if (fileSize == INVALID_FILE_SIZE) {
+        CloseHandle(hFile);
+        return false;
+    }
+
+    std::vector<char> buffer(fileSize + 1, '\0');
+    DWORD bytesRead;
+    if (!ReadFile(hFile, buffer.data(), fileSize, &bytesRead, NULL)) {
+        CloseHandle(hFile);
+        return false;
+    }
+    CloseHandle(hFile);
+
+    try {
+        std::stringstream ss(std::string(buffer.begin(), buffer.end()));
+        std::string line;
+        data.clear();
+        columnCount = 0;
+        bool isFirstRow = true;
+        bool isObjectFormat = false;
+        std::vector<std::string> columnNames;  // ê°ì²´ í˜•ì‹ì¼ ê²½ìš° í‚¤ ëª©ë¡ ì €ì¥
+        while (std::getline(ss, line)) {
+            if (line.empty()) continue;
+
+            try {
+                nlohmann::json jsonData = nlohmann::json::parse(line);
+
+                if (isFirstRow) {
+                    isFirstRow = false;
+                    if (jsonData.is_array()) {
+                        // ì²« ë²ˆì§¸ í–‰ì´ ë°°ì—´ì¸ ê²½ìš°
+                        columnCount = jsonData.size();
+                        isObjectFormat = false;
+                    }
+                    else if (jsonData.is_object()) {
+                        // ì²« ë²ˆì§¸ í–‰ì´ ê°ì²´ì¸ ê²½ìš°
+                        columnNames = extractKeyOrder(line);
+                        columnCount = columnNames.size();
+                        isObjectFormat = true;
+                    }
+                    else {
+                        std::cerr << "JSONL ì²« ë²ˆì§¸ í–‰ì´ ë°°ì—´ ë˜ëŠ” ê°ì²´ê°€ ì•„ë‹™ë‹ˆë‹¤. íŒŒì‹± ì‹¤íŒ¨.\n";
+                        return false;
+                    }
+                }
+
+                if (isObjectFormat) {
+                    // ê°ì²´ í˜•ì‹ ì²˜ë¦¬
+                    if (!jsonData.is_object()) {
+                        std::cerr << "JSONL í˜•ì‹ ë¶ˆì¼ì¹˜: ì²« í–‰ì´ ê°ì²´ì¸ë° ë°°ì—´ì´ ê°ì§€ë¨. í•´ë‹¹ ì¤„ ë¬´ì‹œ.\n";
+                        continue;
+                    }
+
+                    std::vector<std::string> row(columnCount, "N/A");
+                    for (size_t i = 0; i < columnCount; ++i) {
+                        if (jsonData.contains(columnNames[i]) && jsonData[columnNames[i]].is_string()) {
+                            row[i] = jsonData[columnNames[i]].get<std::string>();
+                        }
+                    }
+                    data.emplace_back(row[0], (columnCount > 1 ? row[1] : "N/A"), (columnCount > 2 ? row[2] : "N/A"));
+                }
+                else {
+                    // ë°°ì—´ í˜•ì‹ ì²˜ë¦¬
+                    if (!jsonData.is_array()) {
+                        std::cerr << "JSONL í˜•ì‹ ë¶ˆì¼ì¹˜: ì²« í–‰ì´ ë°°ì—´ì¸ë° ê°ì²´ê°€ ê°ì§€ë¨. í•´ë‹¹ ì¤„ ë¬´ì‹œ.\n";
+                        continue;
+                    }
+
+                    std::vector<std::string> row(columnCount, "N/A");
+                    for (size_t i = 0; i < std::min(columnCount, jsonData.size()); ++i) {
+                        if (jsonData[i].is_string()) {
+                            row[i] = jsonData[i].get<std::string>();
+                        }
+                    }
+                    data.emplace_back(row[0], (columnCount > 1 ? row[1] : "N/A"), (columnCount > 2 ? row[2] : "N/A"));
+                }
+            }
+            catch (const nlohmann::json::exception& e) {
+                std::cerr << "JSONL íŒŒì‹± ì˜¤ë¥˜ (ì˜ëª»ëœ ì¤„ ë¬´ì‹œ): " << e.what() << "\n";
+                continue;
+            }
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "JSONL íŒŒì¼ ì½ê¸° ì˜¤ë¥˜: " << e.what() << std::endl;
+        return false;
+    }
+
+    return true;
+}
+
+/****************************************************************
 * Function Name: Size
-* Description: ÀúÀåµÈ µ¥ÀÌÅÍÀÇ Çà°ú ¿­ °³¼ö¸¦ ¹İÈ¯
-* Parameters: ¾øÀ½
-* Return: µ¥ÀÌÅÍ Çà(row)°ú ¿­(column) °³¼ö (std::pair<size_t, size_t>)
+* Description: ì €ì¥ëœ ë°ì´í„°ì˜ í–‰ê³¼ ì—´ ê°œìˆ˜ë¥¼ ë°˜í™˜
+* Parameters: ì—†ìŒ
+* Return: ë°ì´í„° í–‰(row)ê³¼ ì—´(column) ê°œìˆ˜ (std::pair<size_t, size_t>)
 ****************************************************************/
 std::pair<size_t, size_t> DataLoader::Size() const {
     return { data.size(), columnCount };
@@ -115,23 +243,23 @@ std::pair<size_t, size_t> DataLoader::Size() const {
 
 /****************************************************************
 * Function Name: get
-* Description: Æ¯Á¤ ÇàÀÇ µ¥ÀÌÅÍ¸¦ ¹İÈ¯
+* Description: íŠ¹ì • í–‰ì˜ ë°ì´í„°ë¥¼ ë°˜í™˜
 * Parameters:
-*   - row_num: °¡Á®¿Ã µ¥ÀÌÅÍÀÇ Çà ¹øÈ£ (size_t)
-* Return: ÇØ´ç ÇàÀÇ µ¥ÀÌÅÍ (std::tuple<std::string, std::string, std::string>)
+*   - row_num: ê°€ì ¸ì˜¬ ë°ì´í„°ì˜ í–‰ ë²ˆí˜¸ (size_t)
+* Return: í•´ë‹¹ í–‰ì˜ ë°ì´í„° (std::tuple<std::string, std::string, std::string>)
 ****************************************************************/
 std::tuple<std::string, std::string, std::string> DataLoader::get(size_t row_num) const {
     if (row_num >= data.size()) {
-        throw std::out_of_range("ÀÎµ¦½º ¹üÀ§¸¦ ÃÊ°úÇß½À´Ï´Ù.");
+        throw std::out_of_range("ì¸ë±ìŠ¤ ë²”ìœ„ë¥¼ ì´ˆê³¼í–ˆìŠµë‹ˆë‹¤.");
     }
     return data[row_num];
 }
 
-// Å×½ºÆ® ÄÚµå
+// í…ŒìŠ¤íŠ¸ ì½”ë“œ
 int test_data_loader() {
     DataLoader loader;
     if (!loader.loadCSV(L"QA_total.csv")) {
-        std::wcerr << L"CSV ÆÄÀÏÀ» ºÒ·¯¿ÀÁö ¸øÇß½À´Ï´Ù." << std::endl;
+        std::wcerr << L"CSV íŒŒì¼ì„ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤." << std::endl;
         return 1;
     }
 
@@ -142,13 +270,41 @@ int test_data_loader() {
         for (size_t i = 0; i < rows; ++i) {
             auto [q, a, d] = loader.get(i);
             std::cout << "Row " << i << ":\n";
-            std::cout << "  Question: " << q << "\n";
-            std::cout << "  Answer: " << a << "\n";
-            std::cout << "  Documents: " << d << "\n";
+            std::cout << "  colum1: " << q << "\n";
+            std::cout << "  colum2: " << a << "\n";
+            std::cout << "  colum3: " << d << "\n";
         }
     }
     catch (const std::exception& e) {
-        std::cerr << "¿À·ù ¹ß»ı: " << e.what() << std::endl;
+        std::cerr << "ì˜¤ë¥˜ ë°œìƒ: " << e.what() << std::endl;
+    }
+
+    return 0;
+}
+
+// í…ŒìŠ¤íŠ¸ ì½”ë“œ ìˆ˜ì •
+int test_data_loader_formats() {
+    DataLoader loader;
+
+    // JSON í…ŒìŠ¤íŠ¸
+    if (!loader.loadJSONL(L"train.jsonl")) {
+        std::wcerr << L"JSON íŒŒì¼ì„ ë¶ˆëŸ¬ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤." << std::endl;
+    }
+
+    auto [jsonRows, jsonCols] = loader.Size(); 
+    std::cout << "JSON - Rows: " << jsonRows << ", Columns: " << jsonCols << std::endl;
+
+    try {
+        for (size_t i = 0; i < 10; ++i) {
+            auto [q, a, d] = loader.get(i);
+            std::cout << "Row " << i << ":\n";
+            std::cout << "  colum1: " << q << "\n";
+            std::cout << "  colum2: " << a << "\n";
+            std::cout << "  colum3: " << d << "\n";
+        }
+    }
+    catch (const std::exception& e) {
+        std::cerr << "ì˜¤ë¥˜ ë°œìƒ: " << e.what() << std::endl;
     }
 
     return 0;

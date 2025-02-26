@@ -1,45 +1,54 @@
-/*******************************************************************************
-    ÆÄ     ÀÏ     ¸í : data_loader.h
-    ÇÁ·Î±×·¥¸íÄª :  µ¥ÀÌÅÍ ÆÄÀÏ ·Î´õ (CSV)
-    ÇÁ·Î±×·¥¿ëµµ : CSV ÆÄÀÏÀ» ·ÎµåÇÏ¿© µ¥ÀÌÅÍ¸¦ ÀĞ¾î¿À´Â Å¬·¡½º
-    Âü  °í  »ç  Ç×  :
+ï»¿/*******************************************************************************
+    íŒŒ     ì¼     ëª… : data_loader.h
+    í”„ë¡œê·¸ë¨ëª…ì¹­ :  ë°ì´í„° íŒŒì¼ ë¡œë” (CSV)
+    í”„ë¡œê·¸ë¨ìš©ë„ : CSV íŒŒì¼ì„ ë¡œë“œí•˜ì—¬ ë°ì´í„°ë¥¼ ì½ì–´ì˜¤ëŠ” í´ë˜ìŠ¤
+    ì°¸  ê³   ì‚¬  í•­  :
 
-    ÀÛ    ¼º    ÀÚ : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
-    ¶ó ÀÌ ¼¾ ½º  : MIT License
+    ì‘    ì„±    ì : Daniel Heo ( https://github.com/Daniel-Heo/WinRAG )
+    ë¼ ì´ ì„¼ ìŠ¤  : MIT License
     ----------------------------------------------------------------------------
-    ¼öÁ¤ÀÏÀÚ    ¼öÁ¤ÀÚ      ¼öÁ¤³»¿ë
+    ìˆ˜ì •ì¼ì    ìˆ˜ì •ì      ìˆ˜ì •ë‚´ìš©
     =========== =========== ====================================================
-    2025.2.22   Daniel Heo  ÃÖÃÊ »ı¼º
+    2025.2.22   Daniel Heo  ìµœì´ˆ ìƒì„±
 *******************************************************************************/
 #pragma once
+#define NOMINMAX  // min, max ë§¤í¬ë¡œ ì¶©ëŒ ë°©ì§€ (Windows í™˜ê²½)
 #include <windows.h>
 #include <vector>
 #include <string>
 #include <tuple>
 #include <iostream>
+#include <fstream>
+#include <sstream>
+#include <regex>
+#include "json.hpp"  // JSON ì§€ì›
 
 /****************************************************************
 * Class Name: DataLoader
-* Description: CSV ÆÄÀÏÀ» ·ÎµåÇÏ¿© µ¥ÀÌÅÍ¸¦ ÀúÀåÇÏ°í Á¦°øÇÏ´Â Å¬·¡½º
+* Description: CSV íŒŒì¼ì„ ë¡œë“œí•˜ì—¬ ë°ì´í„°ë¥¼ ì €ì¥í•˜ê³  ì œê³µí•˜ëŠ” í´ë˜ìŠ¤
 ****************************************************************/
 class DataLoader {
 private:
     std::vector<std::tuple<std::string, std::string, std::string>> data;
     size_t columnCount = 0;
 
-    // ¹®ÀÚ¿­À» ÆÄ½ÌÇÏ´Â ÇÔ¼ö
+    // ë¬¸ìì—´ì„ íŒŒì‹±í•˜ëŠ” í•¨ìˆ˜
     std::vector<std::string> parseCSVLine(const std::string& line);
+    // JSONL íŒŒì¼ì—ì„œ ì¸ì ìˆœì„œë¥¼ ì¶”ì¶œí•˜ëŠ” í•¨ìˆ˜
+    std::vector<std::string> extractKeyOrder(const std::string& jsonString) ;
 
 public:
-    // CSV ÆÄÀÏÀ» ·ÎµåÇÏ´Â ÇÔ¼ö
+    // CSV íŒŒì¼ì„ ë¡œë“œí•˜ëŠ” í•¨ìˆ˜
     bool loadCSV(const std::wstring& filename);
+    bool loadJSONL(const std::wstring& filename);
 
-    // ÀúÀåµÈ µ¥ÀÌÅÍÀÇ Å©±â ¹İÈ¯
+    // ì €ì¥ëœ ë°ì´í„°ì˜ í¬ê¸° ë°˜í™˜
     std::pair<size_t, size_t> Size() const;
 
-    // Æ¯Á¤ row µ¥ÀÌÅÍ¸¦ ¹İÈ¯
+    // íŠ¹ì • row ë°ì´í„°ë¥¼ ë°˜í™˜
     std::tuple<std::string, std::string, std::string> get(size_t row_num) const;
 };
 
 // Test function
 int test_data_loader();
+int test_data_loader_formats();

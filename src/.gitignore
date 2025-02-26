@@ -45,6 +45,7 @@ WASDK/
 *.csv
 *.txt
 *.bin
+*.jsonl
 
 # 패키지 및 로컬 설치 파일
 packages/
