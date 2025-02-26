@@ -32,7 +32,6 @@
 #include <sstream>
 #include <filesystem>  // C++17 필요
 #include "math.h"
-#include "thread_pool.h"
 
 #define MAX_FILE_PATH   256
 #define CLUSTER_COUNT 6 // 클러스터 개수 및 클러스터링 반복 횟수
