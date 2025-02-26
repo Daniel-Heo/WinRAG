@@ -85,7 +85,6 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 ## 4️⃣ **사용 방법**  
 
 ### ✅ **1. 프로젝트 빌드**  
-```bash
-g++ -o main.exe test_main.cpp cluster_db.cpp data_loader.cpp \
-    text_cluster_db.cpp tokenizer.cpp weight_loader.cpp \
-    weight_tokenizer.cpp math.cpp -std=c++20 -mavx2
+**소스를Visualstudio에 모두 넣은후 아래의 속성을 설정하고 컴파일한다. 
+**VisualStudio 메뉴>프로젝트>속성에서 구성 속성>C/C++>코드 생성>고급 명령 집합 사용 설정 : AVX2 or SSE2
+**VisualStudio 메뉴>프로젝트>속성에서 구성 속성>C/C++>일반>C++ 언어 표준 : ISO C++ 17 표준
