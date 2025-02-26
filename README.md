@@ -6,7 +6,7 @@
 ![](WinRAG_구조.PNG?raw=true)
 
 ### 텍스트 토크나이저
-Sentence Piece 토크나이저만 제공 : 한국어를 완벽하게 지원해줄 수 있어서. 
+Sentence Piece, Word Piece 토크나이저 제공 : 한국어 단어 의미를 잘 반영해줌. 
 - IDS를 얻는 속도를 최적화에 중점 : Trie 알고리즘으로 token 검색 최적화와 메모리풀 사용
 - 검색 성능 : 5만개의 vocab으로 10만건 검색 처리 시간("딮러닝은 AI 모델을 개선합니다.") -> 5초 정도
 
