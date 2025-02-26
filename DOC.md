@@ -15,7 +15,6 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 **K-Nearest Neighbor 기반 유사도 검색**  
 **코사인 유사도, 평균 벡터 연산**  
 
----
 
 ## 2. **파일 설명**  
 | 파일명 | 설명 |
@@ -29,7 +28,6 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 | `math.h/cpp` | 벡터 연산 (정규화, 평균, 코사인 유사도) |
 | `test_main.cpp` | 프로젝트 전체 테스트 코드 |
 
----
 
 ## 3. **클래스 및 주요 함수 설명**  
 
@@ -39,7 +37,6 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 - **`FindNearestCluster()`** - 클러스터 내에서 가장 유사한 데이터 검색  
 - **`FindNearestFull()`** - 전체 데이터에서 가장 유사한 데이터 검색  
 
----
 
 ### **CSV 데이터 로더 (`data_loader.h`)**  
 **Class:** `DataLoader`  
@@ -47,40 +44,34 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 - **`get()`** - 특정 행의 데이터 반환  
 - **`Size()`** - 데이터 크기 반환  
 
----
 
 ### **텍스트 클러스터링 래퍼 (`text_cluster_db.h`)**  
 **Class:** `TextClusterDB`  
 - **`InsertText()`** - 텍스트와 벡터를 함께 저장  
 - **`SearchText()`** - 유사한 텍스트 검색  
 
----
 
 ### **토크나이저 (`tokenizer.h`)**  
 **Class:** `Tokenizer`  
 - **`loadTokenizer()`** - JSON 형식의 토크나이저 로드  
 - **`tokenize()`** - 문장을 토큰으로 변환  
 
----
 
 ### **가중치 로더 (`weight_loader.h`)**  
 **Class:** `WeightLoader`  
 - **`get()`** - 특정 행 또는 셀의 가중치 반환  
 
----
 
 ### **가중치 토크나이저 (`weight_tokenizer.h`)**  
 **Class:** `WeightTokenizer`  
 - **`GetWeight()`** - 문장을 가중치 벡터로 변환  
 
----
 
 ### **벡터 연산 (`math.h`)**  
 - **`NormalizeVector()`** - 벡터 정규화  
 - **`MeanVector()`** - 벡터 평균 계산  
 - **`CosineSimilarity()`** - 두 벡터 간 코사인 유사도 계산  
 
----
 
 ## 4. **사용 방법**  
 ### **1) 데이터 생성**  
