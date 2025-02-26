@@ -38,17 +38,17 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 - **`FindNearestFull()`** - 전체 데이터에서 가장 유사한 데이터 검색  
 
 
+### **텍스트 클러스터링 래퍼 (`text_cluster_db.h`)**  
+**Class:** `TextClusterDB`  
+- **`InsertText()`** - 텍스트와 벡터를 함께 저장  
+- **`SearchText()`** - 유사한 텍스트 검색
+
+
 ### **CSV 데이터 로더 (`data_loader.h`)**  
 **Class:** `DataLoader`  
 - **`loadCSV()`** - CSV 파일을 로드  
 - **`get()`** - 특정 행의 데이터 반환  
 - **`Size()`** - 데이터 크기 반환  
-
-
-### **텍스트 클러스터링 래퍼 (`text_cluster_db.h`)**  
-**Class:** `TextClusterDB`  
-- **`InsertText()`** - 텍스트와 벡터를 함께 저장  
-- **`SearchText()`** - 유사한 텍스트 검색  
 
 
 ### **토크나이저 (`tokenizer.h`)**  
