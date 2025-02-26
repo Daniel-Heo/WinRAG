@@ -1,5 +1,5 @@
 # WinRAG
- 윈도우 개발자를 위한 Simple RAG 소스. 일반 PC에서 직접 RAG 기반 프로그램을 사용함으로써 보안성도 제공하고 사용자의 요구에 부합되는 다양한 프로그램을 개발하는데 도움이 될 것이라 생각해서 기본적인 토대를 만들어서 제공할 생각입니다. 참여하실 분은 환영합니다.
+ 윈도우 개발자를 위한 Simple RAG 소스. 일반 PC에서 직접 RAG 기반 프로그램을 사용함으로써 보안성도 제공하고 사용자의 요구에 부합되는 다양한 프로그램을 개발하는데 도움이 될 것이라 생각해서 기본적인 토대를 만들어서 오픈소스로 제공합니다.
 
 * 성능 데이터는 intel i5-12600K에서 테스트 되었습니다.
 
@@ -21,16 +21,10 @@ AI 모델의 가중치 전체를 메모리에 1차원으로 정렬해서 올려�
 풀스캔 검색시간 : 0.74529s
 ```
 
-- 검색 방식 : 클러스터링(Clustering) 방식의 유사도 검색과 풀스캔 
+- 검색 방식 : 클러스터링(Clustering) 방식의 유사도 검색과 풀스캔 ( 기본값은 풀스캔 )
 - 유사도 계산 : SIMD로 처리 ( SSE2 / (AVX2+FMA3). 일반 PC에서 사용하는 것이라 심플한 형태를 취할 예정임. GPU는 적용하지 않을 예정. )
-- 단점 : 완벽한 k - NN이 아닌 근사 결과 제공 -> 데이터가 1000개 미만일 경우에 풀스캔 함수 사용
+- 단점 : 클러스터링 검색시 완벽한 k - NN이 아닌 근사 결과 제공. 완벽한 검색이 필요하면 풀스캔 사용.
 - 저장/불러오기/추가/삭제 : 파일 이름을 직접 입력할 수 있음. ( 다양한 사용을 위해 )
-- 기본 벡터 연산 함수 제공 : 
-```cpp
-void NormalizeVector(float* vec, size_t size); // 벡터 노멀라이즈
-std::vector<float> MeanVector(std::vector<std::vector<float>>& matrix); // 평균 벡터 계산
-float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사인 유사도 계산
-```
 
 ## make_data 폴더
  - 모델->가중치 데이터 생성 : embedding_weight.npy
@@ -39,6 +33,10 @@ float CosineSimilarity(const float* v1, const float* v2, size_t size); // 코사
    save_weights.py : 가중치를 파일로 저장
 
    save_tokenizer.py : 토크나이저 파일 저장
+
+## 컴파일 옵션 설정
+- VisualStudio 메뉴>프로젝트>속성에서 구성 속성>C/C++>코드 생성>고급 명령 집합 사용 설정 : AVX2 or SSE2
+- 위의 설정을 해주셔야 CPU의 성능을 끌어올릴 수 있습니다. 
 
 ## 사용 예제
 test_main.cpp 참조
