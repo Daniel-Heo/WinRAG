@@ -20,7 +20,7 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 | 파일명 | 설명 |
 |--------|--------|
 | `cluster_db.h/cpp` | 클러스터링 기반 데이터베이스 구현 |
-| `data_loader.h/cpp` | CSV 데이터를 로드하고 저장 |
+| `data_loader.h/cpp` | CSV,JSONL 데이터를 로드하고 저장 |
 | `text_cluster_db.h/cpp` | 클러스터링 DB의 고수준 API 제공 |
 | `tokenizer.h/cpp` | 문장을 토큰화하여 벡터로 변환 |
 | `weight_loader.h/cpp` | 가중치 데이터를 로드하고 변환 |
@@ -44,9 +44,10 @@ WinRAG 프로젝트는 클러스터링을 기반으로 한 유사도 검색 시�
 - **`SearchText()`** - 유사한 텍스트 검색
 
 
-### **CSV 데이터 로더 (`data_loader.h`)**  
+### ** 데이터 로더 (`data_loader.h`)**  
 **Class:** `DataLoader`  
-- **`loadCSV()`** - CSV 파일을 로드  
+- **`loadCSV()`** - CSV 파일을 로드
+- **`loadJSONL()`** - JSONL 파일을 로드
 - **`get()`** - 특정 행의 데이터 반환  
 - **`Size()`** - 데이터 크기 반환  
 
