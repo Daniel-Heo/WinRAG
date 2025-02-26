@@ -46,8 +46,8 @@ struct Token {
 
 /****************************************************************
 * Class Name: Tokenizer
-* Description: SentencePiece 기반의 토크나이저 클래스
-*              Trie 구조를 사용하여 검색 최적화
+* Description: SentencePiece & WordPiece 자동 선택
+*              Trie 구조를 사용하여 검색 최적화 
 ****************************************************************/
 class Tokenizer {
 private:
@@ -74,9 +74,14 @@ private:
     // 멤버 변수
     MemoryPool* nodePool;
     TrieNode* root;
+    std::string decoderType; // "Metaspace" → SentencePiece, "WordPiece" → WordPiece
+    std::string unkToken;    // UNK 토큰
+	int unkId;               // UNK 토큰 ID
+    std::string subwordPrefix; // SentencePiece의 replacement 값 또는 WordPiece의 prefix 값
 
-    // 내부적으로 사용하는 helper 함수
-    std::pair<std::string, int> searchLastMatchedToken(const std::string& word) const;
+
+    // 내부 함수
+    std::pair<std::string, int> searchLastMatchedToken(const std::string& word, bool isSubword) const;
 
 public:
     Tokenizer();                            // 생성자
@@ -88,3 +93,4 @@ public:
 
 // 테스트 함수
 int test_tokenizer();
+int test_wordpiece();

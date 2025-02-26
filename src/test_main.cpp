@@ -11,7 +11,7 @@
     =========== =========== ====================================================
     2025.2.22   Daniel Heo  최초 생성
 *******************************************************************************/
-//#include "tokenizer.h"
+#include "tokenizer.h"
 //#include "weight_loader.h"
 //#include "cluster_db.h"
 //#include "bm25.h"
@@ -130,6 +130,7 @@ int main() {
     SetConsoleOutputCP(CP_UTF8);   // 출력 (콘솔)
     
     //test_tokenizer();
+    //test_wordpiece();
 	//test_weights();
     //test_cluster_db();
     //test_cluster_db_accuracy();

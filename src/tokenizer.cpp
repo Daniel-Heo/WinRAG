@@ -92,12 +92,48 @@ void Tokenizer::loadTokenizer(const std::string& filename) {
     json tokenizer;
     file >> tokenizer;
 
+    // 디코더 타입 감지 (Metaspace → SentencePiece, WordPiece → WordPiece)
+    if (tokenizer.contains("decoder") && tokenizer["decoder"].contains("type")) {
+        decoderType = tokenizer["decoder"]["type"].get<std::string>();
+    }
+    else {
+        std::cerr << "Error: tokenizer.json에 decoder.type이 정의되지 않음.\n";
+        exit(1);
+    }
+
+    // `replacement` 또는 `prefix` 값 가져오기
+    if (decoderType == "Metaspace" && tokenizer["decoder"].contains("replacement")) {
+        subwordPrefix = tokenizer["decoder"]["replacement"].get<std::string>();
+    }
+    else if (decoderType == "WordPiece" && tokenizer["decoder"].contains("prefix")) {
+        subwordPrefix = tokenizer["decoder"]["prefix"].get<std::string>();
+    }
+    else {
+        subwordPrefix = (decoderType == "Metaspace") ? "▁" : "##";  // 기본값 설정
+    }
+
+    // UNK 토큰 확인
+    if (tokenizer["model"].contains("unk_token")) {
+        unkToken = tokenizer["model"]["unk_token"].get<std::string>();
+		unkId = tokenizer["model"]["vocab"][unkToken].get<int>();
+    }
+    else {
+       // WordPiece인 경우
+        if (decoderType == "WordPiece") {
+            unkToken = "[UNK]"; // 기본값
+            unkId = 1;
+		}
+        else {
+            unkToken = "<unk>"; // 기본값
+            unkId = 0;
+        }
+    }
+
     size_t vocabSize = tokenizer["model"]["vocab"].size();
     size_t estimatedNodes = vocabSize * 3;
 
     delete nodePool;
     nodePool = new MemoryPool(estimatedNodes);
-
     root = nodePool->allocate();
 
     for (auto it = tokenizer["model"]["vocab"].begin(); it != tokenizer["model"]["vocab"].end(); ++it) {
@@ -105,6 +141,7 @@ void Tokenizer::loadTokenizer(const std::string& filename) {
         int token_id = it.value().get<int>();
 
         TrieNode* current = root;
+
         for (unsigned char ch : token) {
             if (!current->children[ch]) {
                 current->children[ch] = nodePool->allocate();
@@ -124,10 +161,15 @@ void Tokenizer::loadTokenizer(const std::string& filename) {
 * Parameters: 단어    (const std::string&)
 * Return: 가장 긴 매칭된 토큰과 ID를 반환 (std::pair<std::string, int>)
 ****************************************************************/
-std::pair<std::string, int> Tokenizer::searchLastMatchedToken(const std::string& word) const {
+std::pair<std::string, int> Tokenizer::searchLastMatchedToken(const std::string& word, bool isSubword) const {
     TrieNode* current = root;
     int lastMatchedId = -1;
     int lastMatchedPos = -1;
+
+    //std::string diffWord = word;
+
+	//if (isSubword&& decoderType == "WordPiece" )
+    //    diffWord = subwordPrefix + word;
 
     const char* ptr = word.c_str();
     for (size_t i = 0; *ptr; ++i, ++ptr) {
@@ -142,9 +184,9 @@ std::pair<std::string, int> Tokenizer::searchLastMatchedToken(const std::string&
         }
     }
 
-    return (lastMatchedId != -1)
-        ? std::make_pair(word.substr(0, lastMatchedPos + 1), lastMatchedId)
-        : std::make_pair("", -1);
+    if (lastMatchedId != -1) return std::make_pair(word.substr(0, lastMatchedPos + 1), lastMatchedId);
+
+    return { "", -1 };
 }
 
 /****************************************************************
@@ -161,20 +203,30 @@ std::vector<Token> Tokenizer::tokenize(const std::string& text) const {
         std::istream_iterator<std::string>());
 
     for (const auto& word : words) {
-        std::string input = "▁" + word;
+        std::string input = (decoderType == "WordPiece") ? word : subwordPrefix + word;
         size_t position = 0;
         size_t end = input.size();
+        bool isSubword = false;
 
         while (position < end) {
             std::string substring = input.substr(position, end - position);
-            auto matchedToken = searchLastMatchedToken(substring);
+            int subwordPrefixSize=0;
+            if (isSubword && decoderType == "WordPiece") {
+                substring = subwordPrefix + substring;
+				subwordPrefixSize = subwordPrefix.size();
+            }
+			//printf("substring: %s\n", substring.c_str());
+            auto matchedToken = searchLastMatchedToken(substring, isSubword);
 
             if (matchedToken.second != -1) {
+                // WordPiece 또는 SentencePiece 방식에 따라 접두어 추가
+                //std::string tokenKey = (isSubword) ? subwordPrefix + matchedToken.first : matchedToken.first;
                 tokens.push_back(Token{ matchedToken.first, matchedToken.second });
-                position += matchedToken.first.size();
+                position += matchedToken.first.size()- subwordPrefixSize;
+                isSubword = true; // 이후 토큰은 서브워드 처리
             }
             else {
-                tokens.push_back(Token{ "<unk>", 5 });
+                tokens.push_back(Token{ unkToken, unkId });
 
                 char c = input[position];
                 int byteCount;
@@ -188,6 +240,7 @@ std::vector<Token> Tokenizer::tokenize(const std::string& text) const {
                     byteCount = end - position;
 
                 position += byteCount;
+                isSubword = true; // 이후 토큰은 서브워드 처리
             }
         }
     }
@@ -219,6 +272,21 @@ int test_tokenizer() {
 		std::cout << token.key << ":";
 		std::cout << token.id << " ";
 	}
+    std::cout << std::endl;
+
+    return 0;
+}
+
+int test_wordpiece() {
+    Tokenizer tokenizer;
+    tokenizer.loadTokenizer("tokenizer_wordpiece.json");
+
+    std::string text = "Deep learning advances AI models";
+    auto tokens = tokenizer.tokenize(text);
+
+    for (const auto& token : tokens) {
+        std::cout << token.key << ":" << token.id << " ";
+    }
     std::cout << std::endl;
 
     return 0;
