@@ -232,6 +232,47 @@ bool DataLoader::loadJSONL(const std::wstring& filename) {
 }
 
 /****************************************************************
+ * Function Name: loadTXT
+ * Description: TXT 파일을 로드하여 데이터를 저장
+ * Parameters:
+ *  - filename: TXT 파일 경로 (wstring)
+ * Return: 파일 로드 성공 여부 (bool)
+ ****************************************************************/
+bool DataLoader::loadTXT(const std::wstring& filename)  {
+    HANDLE hFile = CreateFileW(filename.c_str(), GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        std::wcerr << L"파일을 열 수 없습니다: " << filename << std::endl;
+        return false;
+    }
+
+    DWORD fileSize = GetFileSize(hFile, NULL);
+    if (fileSize == INVALID_FILE_SIZE) {
+        CloseHandle(hFile);
+        return false;
+    }
+
+    std::vector<char> buffer(fileSize + 1, '\0');
+    DWORD bytesRead;
+    if (!ReadFile(hFile, buffer.data(), fileSize, &bytesRead, NULL)) {
+        CloseHandle(hFile);
+        return false;
+    }
+    CloseHandle(hFile);
+
+    std::string content(buffer.begin(), buffer.end());
+    std::stringstream ss(content);
+    std::string line;
+    data.clear();
+    columnCount = 1;
+    while (std::getline(ss, line)) {
+        if (line.empty()) continue;
+        data.emplace_back(line, "N/A", "N/A");
+    }
+
+    return true;
+}
+
+/****************************************************************
 * Function Name: Size
 * Description: 저장된 데이터의 행과 열 개수를 반환
 * Parameters: 없음
@@ -287,7 +328,8 @@ int test_data_loader_formats() {
     DataLoader loader;
 
     // JSON 테스트
-    if (!loader.loadJSONL(L"train.jsonl")) {
+    //if (!loader.loadJSONL(L"train.jsonl")) {
+    if (!loader.loadTXT(L"QA_total.csv")) {
         std::wcerr << L"JSON 파일을 불러오지 못했습니다." << std::endl;
     }
 

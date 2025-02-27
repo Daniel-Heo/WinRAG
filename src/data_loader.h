@@ -41,6 +41,7 @@ public:
     // CSV 파일을 로드하는 함수
     bool loadCSV(const std::wstring& filename);
     bool loadJSONL(const std::wstring& filename);
+    bool loadTXT(const std::wstring& filename);
 
     // 저장된 데이터의 크기 반환
     std::pair<size_t, size_t> Size() const;
